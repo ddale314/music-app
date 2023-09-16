@@ -24,6 +24,8 @@ export default function Layout({ children, home }) {
                 />
                 <meta name="og:title" content={siteTitle} />
             </Head>
+            <Link href="/">Home</Link>
+            <Link href="/analysis" className={utilStyles.paddingLeft}>Audio Analysis</Link>
             <header className={styles.header}>
                 {home ? (
                     <>
@@ -56,11 +58,6 @@ export default function Layout({ children, home }) {
                 )}
             </header>
             <main>{children}</main>
-            {!home && (
-                <div className={styles.backToHome}>
-                    <Link href="/">← Back to home</Link>
-                </div>
-            )}
         </div>
     );
 }
