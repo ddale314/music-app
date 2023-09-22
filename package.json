@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "next": "latest",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "eslint": "^8.48.0",
     "eslint-config-google": "^0.14.0",
+    "eslint-config-next": "13.4.19",
     "eslint-plugin-react": "^7.33.2"
   }
 }
