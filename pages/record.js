@@ -2,6 +2,7 @@ import Head from "next/head";
 import utilStyles from '../styles/utils.module.css';
 import Layout from "../components/layout";
 
+// record, display, and edit audio
 export default function Recording() {
     return (
         <Layout>
