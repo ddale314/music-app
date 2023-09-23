@@ -26,7 +26,9 @@ export default function Layout({ children, home }) {
             </Head>
             <Link href="/">Home</Link>
             <Link href="/analysis" className={utilStyles.paddingLeft}>Audio Analysis</Link>
-            <header className={styles.header}>
+            <Link href="/record" className={utilStyles.paddingLeft}>Recording</Link>
+
+            <header className={styles.header + ' ' + utilStyles.paddingTop}>
                 {home ? (
                     <>
                         <Image

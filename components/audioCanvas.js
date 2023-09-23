@@ -1,9 +1,14 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Complex } from '../utils/complex';
+import { fft } from '../utils/complex';
 
 let mediaStream;
 let audioContext;
 let analyser;
-let WIDTH = 1000, HEIGHT = 1000;
+let timeDomainData;
+let frequencyData = [];
+let fftSize = 8192;
+let bufferLength = fftSize/2;
 
 export function setMediaStream(stream) {
     mediaStream = stream;
@@ -14,7 +19,6 @@ export default function AudioCanvas({ type, width, height }) {
     const [context, setContext] = useState(null);
 
     const draw = useCallback(() => {
-
         if (mediaStream) {
             if (!audioContext) {
                 audioContext = new AudioContext();
@@ -22,28 +26,30 @@ export default function AudioCanvas({ type, width, height }) {
             if (!analyser) {
                 const source = audioContext.createMediaStreamSource(mediaStream);
                 analyser = audioContext.createAnalyser();
-                analyser.fftSize = 2048;
+                analyser.fftSize = fftSize;
                 source.connect(analyser);
+                timeDomainData = new Float32Array(bufferLength);
             }
+            
+            analyser.getFloatTimeDomainData(timeDomainData);
+            for (let i = 0; i < bufferLength; i++) {
+                frequencyData[i] = new Complex(timeDomainData[i], 0);
+            }
+            fft(frequencyData, false);
 
-            const bufferLength = analyser.frequencyBinCount;
-            const frequencyData = new Float32Array(bufferLength);
-            analyser.getFloatFrequencyData(frequencyData);
-
-            console.log(frequencyData);
             context.fillStyle = 'rgb(255, 255, 255)';
-            context.fillRect(0, 0, WIDTH, HEIGHT);
+            context.fillRect(0, 0, width, height);
 
-            context.lineWidth = 1;
-            context.strokeStyle = 'rgb(0, 0, 0)';
+            context.lineWidth = 3;
+            context.strokeStyle = 'rgb(100, 150, 255)';
 
             context.beginPath();
 
-            let increment = WIDTH * 1.0 / (bufferLength / 4);
+            let increment = width * 1.0 / (bufferLength / 4);
             let x = 0;
 
             for (let i = 0; i < (bufferLength / 4); i++) {
-                let y = -frequencyData[i]+HEIGHT/2;
+                let y = -frequencyData[i].magnitude()+height;
                 if (i === 0) {
                     context.moveTo(x, y);
                 }
@@ -55,7 +61,7 @@ export default function AudioCanvas({ type, width, height }) {
             }
         }
         context.stroke();
-    }, [context]);
+    }, [context, height, width]);
 
     useEffect(() => {
         if (canvasRef.current) {
