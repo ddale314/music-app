@@ -1,6 +1,4 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Complex } from '../utils/complex';
-import { fft } from '../utils/fft';
 
 let mediaStream;
 let audioContext;
@@ -10,13 +8,16 @@ let frequencyData = [];
 let fftSize = 8192;
 let bufferLength = fftSize/2;
 
-export function setMediaStream(stream) {
-    mediaStream = stream;
-}
-
-export default function AudioCanvas({ type, width, height }) {
+export default function RecordingCanvas({ width, height }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
+
+    useEffect(() => {
+        if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            setContext(ctx);
+        }
+    }, []);
 
     const draw = useCallback(() => {
         if (mediaStream) {
@@ -64,13 +65,6 @@ export default function AudioCanvas({ type, width, height }) {
     }, [context, height, width]);
 
     useEffect(() => {
-        if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            setContext(ctx);
-        }
-    }, []);
-
-    useEffect(() => {
         let animationFrameId;
 
         if (context) {
@@ -85,6 +79,7 @@ export default function AudioCanvas({ type, width, height }) {
             cancelAnimationFrame(animationFrameId);
         }
     }, [draw, context]);
+
 
     return (
         <canvas ref={canvasRef} width={width} height={height}></canvas>
