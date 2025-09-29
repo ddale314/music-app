@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>stuff</title>
+</head>
+
+<body>
+    <p>
+        <span id="text">Initializing audio player...</span>
+    </p>
+    <canvas class="visualizer" width="1000px" height="1000px"></canvas>
+    <div id="buttons">
+        <br>
+        <button class="record">Record</button>
+        <button class="stop">Stop</button>
+        <button class="capture">Capture</button>
+        <p>
+            <br>
+        </p>
+    </div>
+    <p>
+        <span id="note">--</span><br>
+        <span id="noteName">--</span>
+    </p>
+    <canvas class="editor" width="1000px" height="1000px"></canvas>
+    <div id="editorUI">
+        <br>
+        <button class="play">Play</button><br><br>
+        <label for="index">Change frequency at index</label>
+        <input type="number" id="index" name="index" style="width:50px"><br>
+        <label for="current" id="current">from -- to</label>
+        <input type="number" id="magnitude" name="magnitude" style="width:50px"><br><br>
+        <button class="change">Change</button>
+    </div>
+    <audio id="audio"></audio>
+    <script type="module" src="audio.js"></script>
+</body>
+
+</html>
