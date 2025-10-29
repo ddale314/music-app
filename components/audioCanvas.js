@@ -5,6 +5,11 @@ import { fft } from '../utils/fft';
 let mediaStream;
 let audioContext;
 let analyser;
+let recording = false;
+let recordedBuffer;
+let recordedData;
+let recordPos = 0;
+let recordLength;
 
 let fftSize = 8192;
 let bufferLength = fftSize / 2;
@@ -17,14 +22,20 @@ export function setMediaStream(stream) {
 }
 
 function getFrequencyData(analyser) {
-    let timeDomainData = new Float32Array(bufferLength);
-    analyser.getFloatTimeDomainData(timeDomainData);
+    let timeDomainData = getTimeDomainData(analyser)
     let frequencyData = [];
     for (let i = 0; i < bufferLength; i++) {
         frequencyData[i] = new Complex(timeDomainData[i], 0);
     }
     fft(frequencyData, false);
     return frequencyData;
+}
+
+function getTimeDomainData(analyser) {
+    let timeDomainData = new Float32Array(bufferLength);
+    analyser.getFloatTimeDomainData(timeDomainData);
+    
+    return timeDomainData;
 }
 
 function initAnalyser(audioContext) {
@@ -61,11 +72,33 @@ function indexToFrequency(idx, sampleRate) {
     return Math.round(idx * (sampleRate / (fftSize / 2)));
 }
 
-export default function AudioCanvas({ type, width, height, data=null }) {
+export function startRecording() {
+    recordPos = 0;
+    recordedData = new Float32Array(audioContext.sampleRate * recordLength);
+    recording = true;
+}
+
+export function stopRecording() {
+    recording = false;
+    //recordedBuffer.copyToChannel(recordedData, 0);
+}
+
+export function playCapturedAudio() {
+    console.log(recordedData);
+    const source = audioContext.createBufferSource();
+    source.connect(audioContext.destination);
+    source.buffer = recordedBuffer;
+    console.log(recordedBuffer);
+    source.start();
+}
+
+
+export default function AudioCanvas({ type, width, height, data=null, maxRecordLength }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
+    recordLength = maxRecordLength;
 
     const draw = useCallback(() => {
         if (mediaStream) {
@@ -77,6 +110,44 @@ export default function AudioCanvas({ type, width, height, data=null }) {
             }
 
             let frequencyData;
+
+            if (recording) {
+                if (!recordedBuffer) {
+                    recordedBuffer = audioContext.createBuffer(1, audioContext.sampleRate * maxRecordLength, audioContext.sampleRate);
+                }
+
+                    // for multiple channels
+                    //let pos = recordPos;
+                    //for (let i = 0; i < recordedBuffer.numberOfChannels; i++) {
+                    //    const channel = recordedBuffer.getChannelData(i);
+                    //    while (pos < recordedBuffer.length) {
+                    //        pos++;
+                    //    }
+                    //    if (i == recordedBuffer.numberOfChannels - 1) {
+                    //        recordPos = pos;
+                    //    }
+                    //    else {
+                    //        pos = recordPos;
+                    //    }
+                    //}
+
+                let timeDomainData = getTimeDomainData(analyser);
+                recordedBuffer.copyToChannel(timeDomainData, 0);
+                //for (let i = 0; i < timeDomainData.length; i++) {
+                //    recordedData[recordPos] = timeDomainData[i];
+                //    recordPos++;
+                //}
+
+                    //const channel = recordedBuffer.getChannelData(0);
+                    //let timeDomainData = getTimeDomainData(analyser);
+                    //let i = 0;
+                    //while (recordPos < recordedBuffer.length && i < timeDomainData.length) {
+                    //    channel[recordPos] = timeDomainData[i];
+                    //    console.log(recordPos + " " + i);
+                    //    recordPos++;
+                    //    i++;
+                    //}
+            }
 
             if (data === null) {
                  frequencyData = getFrequencyData(analyser);
@@ -132,6 +203,7 @@ export default function AudioCanvas({ type, width, height, data=null }) {
                 animationFrameId = requestAnimationFrame(render);
             }
             render();
+            
         }
 
         return () => {
