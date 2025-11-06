@@ -1,15 +1,14 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, Fragment } from 'react';
 import { Complex } from '../utils/complex';
 import { fft } from '../utils/fft';
+import AudioSegment from './audioSegment';
 
 let mediaStream;
 let audioContext;
 let analyser;
-let recording = false;
-let recordedBuffer;
-let recordedData;
-let recordPos = 0;
-let recordLength;
+let recordedData = [];
+let mediaRecorder;
+let audioSegmentURLs = [];
 
 let fftSize = 8192;
 let bufferLength = fftSize / 2;
@@ -72,88 +71,80 @@ function indexToFrequency(idx, sampleRate) {
     return Math.round(idx * (sampleRate / (fftSize / 2)));
 }
 
+export function playCapturedAudio() {
+    let time = 0;
+    let i = 0;
+    while (i < recordedBuffers.length) {
+        const source = audioContext.createBufferSource();
+        source.connect(audioContext.destination);
+
+        let recordedBuffer = recordedBuffers[i];
+        source.buffer = recordedBuffer;
+        source.start(time);
+        time += bufferLength / audioContext.sampleRate;
+        i++;
+    }
+}
+
 export function startRecording() {
-    recordPos = 0;
-    recordedData = new Float32Array(audioContext.sampleRate * recordLength);
-    recording = true;
+    if (mediaRecorder) {
+        recordedData = [];
+        mediaRecorder.start();
+    }
 }
 
 export function stopRecording() {
-    recording = false;
-    //recordedBuffer.copyToChannel(recordedData, 0);
+    if (mediaRecorder) {
+        mediaRecorder.stop();
+    }
 }
-
-export function playCapturedAudio() {
-    console.log(recordedData);
-    const source = audioContext.createBufferSource();
-    source.connect(audioContext.destination);
-    source.buffer = recordedBuffer;
-    console.log(recordedBuffer);
-    source.start();
-}
-
 
 export default function AudioCanvas({ type, width, height, data=null, maxRecordLength }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
-    recordLength = maxRecordLength;
 
-    const draw = useCallback(() => {
+    function handleAudio() {
         if (mediaStream) {
+            if (!mediaRecorder) {
+                mediaRecorder = new MediaRecorder(mediaStream);
+
+                mediaRecorder.onstop = (e) => {
+                    let blob = new Blob(recordedData, { 'type' : 'audio/ogg' });
+                    const audioURL = window.URL.createObjectURL(blob);
+                    audioSegmentURLs.push(audioURL);
+                }
+
+                mediaRecorder.ondataavailable = (e) => {
+                    recordedData.push(e.data);
+                }
+            }
             if (!audioContext) {
                 audioContext = new AudioContext();
             }
             if (!analyser) {
                 initAnalyser(audioContext);
             }
+        }
 
-            let frequencyData;
+        let frequencyData = getFrequencyData(analyser);
 
-            if (recording) {
-                if (!recordedBuffer) {
-                    recordedBuffer = audioContext.createBuffer(1, audioContext.sampleRate * maxRecordLength, audioContext.sampleRate);
-                }
+        let [currentNote, currentFrequency] = getFrequencyAndNote(frequencyData, audioContext.sampleRate);
+        setNote(currentNote);
+        setFrequency(currentFrequency);
 
-                    // for multiple channels
-                    //let pos = recordPos;
-                    //for (let i = 0; i < recordedBuffer.numberOfChannels; i++) {
-                    //    const channel = recordedBuffer.getChannelData(i);
-                    //    while (pos < recordedBuffer.length) {
-                    //        pos++;
-                    //    }
-                    //    if (i == recordedBuffer.numberOfChannels - 1) {
-                    //        recordPos = pos;
-                    //    }
-                    //    else {
-                    //        pos = recordPos;
-                    //    }
-                    //}
+        return frequencyData;
+    }
 
-                let timeDomainData = getTimeDomainData(analyser);
-                recordedBuffer.copyToChannel(timeDomainData, 0);
-                //for (let i = 0; i < timeDomainData.length; i++) {
-                //    recordedData[recordPos] = timeDomainData[i];
-                //    recordPos++;
-                //}
+    
 
-                    //const channel = recordedBuffer.getChannelData(0);
-                    //let timeDomainData = getTimeDomainData(analyser);
-                    //let i = 0;
-                    //while (recordPos < recordedBuffer.length && i < timeDomainData.length) {
-                    //    channel[recordPos] = timeDomainData[i];
-                    //    console.log(recordPos + " " + i);
-                    //    recordPos++;
-                    //    i++;
-                    //}
-            }
+    const draw = useCallback(() => {
+        if (mediaStream) {
+            let frequencyData = handleAudio();
 
-            if (data === null) {
-                 frequencyData = getFrequencyData(analyser);
-            }
-            else {
-                frequencyData = data
+            if (data != null) {
+                frequencyData = data;
             }
 
             context.fillStyle = 'rgb(255, 255, 255)';
@@ -216,6 +207,16 @@ export default function AudioCanvas({ type, width, height, data=null, maxRecordL
         <>
             <canvas ref={canvasRef} width={width} height={height}></canvas>
             <div>Frequency: {frequency}, Note: {note}</div>
+            
+            {audioSegmentURLs.map( (url) => 
+                {   
+                    return (
+                        <Fragment key={url}>
+                            <AudioSegment url={url}/>
+                        </Fragment>
+                    ); 
+                }
+            )}
         </>
     );
 }

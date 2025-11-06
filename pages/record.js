@@ -43,6 +43,7 @@ export default function Recording() {
             <AudioCanvas type='static' width={1000} height={250} data={testData}/>
             <RecordButton height={50} width={50}/>
             <PlayButton height={50} width={50}/>
+            <audio></audio>
         </Layout>
     )
 }
