@@ -99,7 +99,7 @@ export function stopRecording() {
     }
 }
 
-export default function AudioCanvas({ type, width, height, data=null, maxRecordLength }) {
+export default function AudioCanvas({ type, width, height, data=null, maxRecordLength=10 }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [note, setNote] = useState(-1);
@@ -210,9 +210,10 @@ export default function AudioCanvas({ type, width, height, data=null, maxRecordL
             
             {audioSegmentURLs.map( (url) => 
                 {   
+                    console.assert(audioContext)
                     return (
                         <Fragment key={url}>
-                            <AudioSegment url={url}/>
+                            <AudioSegment url={url} ctx={audioContext}/>
                         </Fragment>
                     ); 
                 }
