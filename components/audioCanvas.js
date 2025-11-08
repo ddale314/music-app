@@ -2,23 +2,13 @@ import React, { useRef, useState, useEffect, useCallback, Fragment } from 'react
 import { Complex } from '../utils/complex';
 import { fft } from '../utils/fft';
 import AudioSegment from './audioSegment';
+import useRecorder from '../hooks/useRecorder';
 
-let mediaStream;
-let audioContext;
-let analyser;
-let recordedData = [];
-let mediaRecorder;
-let audioSegmentURLs = [];
-
-let fftSize = 8192;
+const fftSize = 8192;
 let bufferLength = fftSize / 2;
 
 const INTERVAL = Math.pow(2, 1/12)
 const NOTES = ['A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A']
-
-export function setMediaStream(stream) {
-    mediaStream = stream;
-}
 
 function getFrequencyData(analyser) {
     let timeDomainData = getTimeDomainData(analyser)
@@ -35,13 +25,6 @@ function getTimeDomainData(analyser) {
     analyser.getFloatTimeDomainData(timeDomainData);
     
     return timeDomainData;
-}
-
-function initAnalyser(audioContext) {
-    const source = audioContext.createMediaStreamSource(mediaStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = fftSize;
-    source.connect(analyser);
 }
 
 function getFrequencyAndNote(frequencyData, sampleRate) {
@@ -71,110 +54,54 @@ function indexToFrequency(idx, sampleRate) {
     return Math.round(idx * (sampleRate / (fftSize / 2)));
 }
 
-export function playCapturedAudio() {
-    let time = 0;
-    let i = 0;
-    while (i < recordedBuffers.length) {
-        const source = audioContext.createBufferSource();
-        source.connect(audioContext.destination);
-
-        let recordedBuffer = recordedBuffers[i];
-        source.buffer = recordedBuffer;
-        source.start(time);
-        time += bufferLength / audioContext.sampleRate;
-        i++;
-    }
-}
-
-export function startRecording() {
-    if (mediaRecorder) {
-        recordedData = [];
-        mediaRecorder.start();
-    }
-}
-
-export function stopRecording() {
-    if (mediaRecorder) {
-        mediaRecorder.stop();
-    }
-}
-
-export default function AudioCanvas({ type, width, height, data=null, maxRecordLength=10 }) {
+export default function AudioCanvas({ type, width, height, data=null, analyser, sampleRate }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
 
-    function handleAudio() {
-        if (mediaStream) {
-            if (!mediaRecorder) {
-                mediaRecorder = new MediaRecorder(mediaStream);
-
-                mediaRecorder.onstop = (e) => {
-                    let blob = new Blob(recordedData, { 'type' : 'audio/ogg' });
-                    const audioURL = window.URL.createObjectURL(blob);
-                    audioSegmentURLs.push(audioURL);
-                }
-
-                mediaRecorder.ondataavailable = (e) => {
-                    recordedData.push(e.data);
-                }
-            }
-            if (!audioContext) {
-                audioContext = new AudioContext();
-            }
-            if (!analyser) {
-                initAnalyser(audioContext);
-            }
-        }
-
+    function handleRealtimeAudio() {
         let frequencyData = getFrequencyData(analyser);
 
-        let [currentNote, currentFrequency] = getFrequencyAndNote(frequencyData, audioContext.sampleRate);
+        let [currentNote, currentFrequency] = getFrequencyAndNote(frequencyData, sampleRate);
         setNote(currentNote);
         setFrequency(currentFrequency);
 
         return frequencyData;
     }
 
-    
-
     const draw = useCallback(() => {
-        if (mediaStream) {
-            let frequencyData = handleAudio();
-
-            if (data != null) {
-                frequencyData = data;
-            }
-
-            context.fillStyle = 'rgb(255, 255, 255)';
-            context.fillRect(0, 0, width, height);
-
-            context.lineWidth = 3;
-            context.strokeStyle = 'rgb(100, 150, 255)';
-
-            context.beginPath();
-
-            let increment = width * 1.0 / (bufferLength / 4);
-            let x = 0;
-
-            for (let i = 0; i < (bufferLength / 4); i++) {
-                let magnitude = frequencyData[i].magnitude();
-                let y = -magnitude + height;
-                if (i === 0) {
-                    context.moveTo(x, y);
-                }
-                else {
-                    context.lineTo(x, y);
-                }
-                x += increment;
-            }
-
-            let [currentNote, currentFrequency] = getFrequencyAndNote(frequencyData, audioContext.sampleRate);
-            setNote(currentNote);
-            setFrequency(currentFrequency);
+        if (type == "realtime" && !analyser) return;
+        let frequencyData = data;
+        if (type == "realtime") {
+            frequencyData = handleRealtimeAudio();
         }
+
+        context.fillStyle = 'rgb(255, 255, 255)';
+        context.fillRect(0, 0, width, height);
+
+        context.lineWidth = 3;
+        context.strokeStyle = 'rgb(100, 150, 255)';
+
+        context.beginPath();
+
+        let increment = width * 1.0 / (bufferLength / 4);
+        let x = 0;
+
+        for (let i = 0; i < (bufferLength / 4); i++) {
+            let magnitude = frequencyData[i].magnitude();
+            let y = -magnitude + height;
+            if (i === 0) {
+                context.moveTo(x, y);
+            }
+            else {
+                context.lineTo(x, y);
+            }
+            x += increment;
+        }
+
         context.stroke();
+    
     }, [context, height, width]);
 
     useEffect(() => {
@@ -184,7 +111,6 @@ export default function AudioCanvas({ type, width, height, data=null, maxRecordL
         }
     }, [])
     
-
     useEffect(() => {
         let animationFrameId;
 
@@ -194,7 +120,6 @@ export default function AudioCanvas({ type, width, height, data=null, maxRecordL
                 animationFrameId = requestAnimationFrame(render);
             }
             render();
-            
         }
 
         return () => {
@@ -202,22 +127,10 @@ export default function AudioCanvas({ type, width, height, data=null, maxRecordL
         }
     }, [draw, context]);
 
-
     return (
         <>
             <canvas ref={canvasRef} width={width} height={height}></canvas>
             <div>Frequency: {frequency}, Note: {note}</div>
-            
-            {audioSegmentURLs.map( (url) => 
-                {   
-                    console.assert(audioContext)
-                    return (
-                        <Fragment key={url}>
-                            <AudioSegment url={url} ctx={audioContext}/>
-                        </Fragment>
-                    ); 
-                }
-            )}
         </>
     );
 }

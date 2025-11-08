@@ -4,22 +4,24 @@ import Layout from '../components/layout';
 import utilStyles from '../styles/utils.module.css';
 import AudioCanvas from '../components/audioCanvas';
 import { setMediaStream } from '../components/audioCanvas';
+import useRecorder from '../hooks/useRecorder';
+import { Complex } from '../utils/complex';
+
+let testData = []
+for (let i = 0; i < 4096; i++) {
+    let i = Math.random() * 60 - 30
+    let j = Math.random() * 60 - 30
+    testData.push(new Complex(i, j));
+}
 
 export default function AudioAnalysis() {
-    useEffect(() => {
-        if (navigator.mediaDevices.getUserMedia) {
-            const constraints = { audio: true };
-            let onSuccess = (stream) => {
-                setMediaStream(stream);
-            }
 
-            let onError = () => {
-                console.log('Error: ' + err);
-            }
+    const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder();
+    
+    if (!isRecording) {
+        startRecording();
+    }
 
-            navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
-        }
-    }, []);
     return <Layout>
         <Head>
             <title>Audio Analysis</title>
@@ -27,7 +29,8 @@ export default function AudioAnalysis() {
         <h1 className={utilStyles.heading2XL} style={{ color: 'rgb(255, 0, 0)' }}>Analysis</h1>
         <section>
             <h1 className={utilStyles.headingMD} style={{ color: 'rgb(0, 0, 255)' }}>Frequency Visualization</h1>
-            <AudioCanvas type={'dynamic'} width={1000} height={500}/>
+            {isRecording && <AudioCanvas type='realtime' width={1000} height={250} analyser={analyser} sampleRate={audioContext.sampleRate}/>}
+            <AudioCanvas type='recorded' width={1000} height={250} data={testData}/>
         </section>
     </Layout>
 }
