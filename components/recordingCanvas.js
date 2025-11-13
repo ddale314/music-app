@@ -1,16 +1,17 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-
-let mediaStream;
-let audioContext;
-let analyser;
-let timeDomainData;
-let frequencyData = [];
-let fftSize = 8192;
-let bufferLength = fftSize/2;
+import useRecorder from '../hooks/useRecorder';
+import RecordButton from '../components/recordButton'
 
 export default function RecordingCanvas({ width, height }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
+    const [audioSegments, setAudioSegments] = useState([]);
+
+    function handleRecordingComplete(blob) {
+        setAudioSegments(audioSegments.concat(blob))
+    }
+
+    const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
     useEffect(() => {
         if (canvasRef.current) {
@@ -20,47 +21,41 @@ export default function RecordingCanvas({ width, height }) {
     }, []);
 
     const draw = useCallback(() => {
-        if (mediaStream) {
-            if (!audioContext) {
-                audioContext = new AudioContext();
+        console.log(isRecording);
+        if (!analyser) return;
+        
+        //for (let i = 0; i < audioSegments.length; i++) {
+        //    audioSegments[i].draw(context);
+        //}
+        console.log("ran");
+        let timeDomainData;
+        analyser.getFloatTimeDomainData(timeDomainData);
+
+        context.fillStyle = 'rgb(255, 255, 255)';
+        context.fillRect(0, 0, width, height);
+
+        context.lineWidth = 3;
+        context.strokeStyle = 'rgb(100, 150, 255)';
+
+        context.beginPath();
+
+        let bufferLength = audioContext.bufferLength;
+
+        let increment = width * 1.0 / (bufferLength / 4);
+        let x = 0;
+
+        for (let i = 0; i < (bufferLength / 4); i++) {
+            let y = timeDomainData[i] + height;
+            if (i === 0) {
+                context.moveTo(x, y);
             }
-            if (!analyser) {
-                const source = audioContext.createMediaStreamSource(mediaStream);
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = fftSize;
-                source.connect(analyser);
-                timeDomainData = new Float32Array(bufferLength);
+            else {
+                context.lineTo(x, y);
             }
-            
-            analyser.getFloatTimeDomainData(timeDomainData);
-            for (let i = 0; i < bufferLength; i++) {
-                frequencyData[i] = new Complex(timeDomainData[i], 0);
-            }
-            fft(frequencyData, false);
 
-            context.fillStyle = 'rgb(255, 255, 255)';
-            context.fillRect(0, 0, width, height);
-
-            context.lineWidth = 3;
-            context.strokeStyle = 'rgb(100, 150, 255)';
-
-            context.beginPath();
-
-            let increment = width * 1.0 / (bufferLength / 4);
-            let x = 0;
-
-            for (let i = 0; i < (bufferLength / 4); i++) {
-                let y = -frequencyData[i].magnitude()+height;
-                if (i === 0) {
-                    context.moveTo(x, y);
-                }
-                else {
-                    context.lineTo(x, y);
-                }
-
-                x += increment;
-            }
+            x += increment;
         }
+    
         context.stroke();
     }, [context, height, width]);
 
@@ -80,8 +75,11 @@ export default function RecordingCanvas({ width, height }) {
         }
     }, [draw, context]);
 
-
     return (
-        <canvas ref={canvasRef} width={width} height={height}></canvas>
+        <>
+            {/*idk some weird bug where recording never actually happens*/}
+            <canvas ref={canvasRef} width={width} height={height}></canvas>
+            <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
+        </> 
     );
 }
