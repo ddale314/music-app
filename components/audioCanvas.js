@@ -54,7 +54,7 @@ function indexToFrequency(idx, sampleRate) {
     return Math.round(idx * (sampleRate / (fftSize / 2)));
 }
 
-export default function AudioCanvas({ type, width, height, data=null, analyser, sampleRate }) {
+export default function AudioCanvas({ type, width=400, height=200, data=null, analyser, sampleRate }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [note, setNote] = useState(-1);

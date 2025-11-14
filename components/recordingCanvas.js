@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import RecordButton from '../components/recordButton'
 
-export default function RecordingCanvas({ width, height }) {
+export default function RecordingCanvas({ width=600, height=200 }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [audioSegments, setAudioSegments] = useState([]);
@@ -21,15 +21,17 @@ export default function RecordingCanvas({ width, height }) {
     }, []);
 
     const draw = useCallback(() => {
-        if (!analyser) return;
+        if (!analyser || !isRecording) return;
         
         //for (let i = 0; i < audioSegments.length; i++) {
         //    audioSegments[i].draw(context);
         //}
-        let timeDomainData = new Float32Array(audioContext.bufferLength);
-        analyser.getFloatTimeDomainData(timeDomainData);
+        
+        let bufferLength = analyser.fftSize / 2;
 
-        console.log(timeDomainData);
+        let data = new Float32Array(bufferLength);
+        analyser.getFloatTimeDomainData(data);
+        // analyser.getFloatFrequencyData(data);
 
         context.fillStyle = 'rgb(255, 255, 255)';
         context.fillRect(0, 0, width, height);
@@ -39,13 +41,11 @@ export default function RecordingCanvas({ width, height }) {
 
         context.beginPath();
 
-        let bufferLength = audioContext.bufferLength;
-
         let increment = width * 1.0 / (bufferLength / 4);
         let x = 0;
 
         for (let i = 0; i < (bufferLength / 4); i++) {
-            let y = timeDomainData[i] + height;
+            let y = data[i] * height + height / 2;
             if (i === 0) {
                 context.moveTo(x, y);
             }
@@ -77,7 +77,6 @@ export default function RecordingCanvas({ width, height }) {
 
     return (
         <>
-            {/*idk some weird bug where recording never actually happens*/}
             <canvas ref={canvasRef} width={width} height={height}></canvas>
             <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
         </> 
