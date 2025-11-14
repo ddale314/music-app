@@ -21,15 +21,15 @@ export default function RecordingCanvas({ width, height }) {
     }, []);
 
     const draw = useCallback(() => {
-        console.log(isRecording);
         if (!analyser) return;
         
         //for (let i = 0; i < audioSegments.length; i++) {
         //    audioSegments[i].draw(context);
         //}
-        console.log("ran");
-        let timeDomainData;
+        let timeDomainData = new Float32Array(audioContext.bufferLength);
         analyser.getFloatTimeDomainData(timeDomainData);
+
+        console.log(timeDomainData);
 
         context.fillStyle = 'rgb(255, 255, 255)';
         context.fillRect(0, 0, width, height);
@@ -57,7 +57,7 @@ export default function RecordingCanvas({ width, height }) {
         }
     
         context.stroke();
-    }, [context, height, width]);
+    }, [context, height, width, isRecording]);
 
     useEffect(() => {
         let animationFrameId;

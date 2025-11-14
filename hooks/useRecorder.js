@@ -3,7 +3,7 @@ import { useState, useRef } from 'react'
 const fftSize = 8192;
 
 export default function useRecorder(onRecordingComplete=null) {
-	const[isRecording, setIsRecording] = useState(false);
+	const [isRecording, setIsRecording] = useState(false);
 
 	const mediaStreamRef = useRef(null);
 	const audioContextRef = useRef(null);
