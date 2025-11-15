@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import AudioCanvas from "./audioCanvas"
 
-export default function AudioSegment({ url, ctx, mousePos }) {
+export default function AudioSegment({ audio, ctx, start, stop, track }) {
 	const [audioBuffer, setBuffer] = useState(null);
 	const [audioData, setData] = useState(null);
 	const [pos, setPos] = useState( {x: 0, y: 0} );
@@ -9,13 +9,12 @@ export default function AudioSegment({ url, ctx, mousePos }) {
 
 	useEffect(() => {
 		async function getAudio() {
-			const response = await fetch(url);
-			let buffer = await ctx.decodeAudioData(await response.arrayBuffer());
+			let buffer = await ctx.decodeAudioData(await audio.arrayBuffer());
 			setBuffer(buffer);
 			setData(buffer.getChannelData(0));
 		}
 		getAudio();
-	}, [url, ctx]);
+	}, [ctx]);
 
 	function play() {
 		const source = ctx.createBufferSource();
@@ -23,29 +22,15 @@ export default function AudioSegment({ url, ctx, mousePos }) {
 		source.connect(ctx.destination);
 		source.start();
 	}
-
-
-	function onMouseDown() {
-		setDragStatus(true);
-	}
 	
-	function onMouseUp() {
-		setDragStatus(false);
-	}
-
-	function onMouseMove() {
-		if (dragging) {
-			setPos( {x: mousePos.x, y: mousePos.y} );
-		}
-	}
-
 	return (
 		<>
-			{console.log(pos.x, pos.y)}
-			<button onMouseDown={onMouseDown} onMouseUp={onMouseUp} onMouseMove={onMouseMove} onClick={play} style={{position: "relative", left: pos.x, top: pos.y}}>Play Audio: {audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds</button>
-			{/*<AudioCanvas type='dynamic' width={1000} height={100} data={audioBuffer ? audioBuffer.getChannelData(0) : null}/>*/}
+			{console.log(stop - start)}
+			<div>
+				<button onClick={play} style={{overflow: "hidden", whiteSpace: "nowrap", position: "relative", height: "50px", width: `${(stop - start)*100}px`}}>
+					Play Audio: {audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
+				</button>
+			</div>
 		</>
-		
-		//<audio controls={true} src={url}></audio>
 	)
 }

@@ -1,17 +1,23 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
-import RecordButton from '../components/recordButton'
+import RecordButton from '../components/recordButton';
+import AudioSegment from '../components/audioSegment';
+
+let nextID = 0;
+let nextTrack = 1;
 
 export default function RecordingCanvas({ width=600, height=200 }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [audioSegments, setAudioSegments] = useState([]);
 
-    function handleRecordingComplete(blob) {
-        setAudioSegments(audioSegments.concat(blob))
-    }
-
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
+    
+    function handleRecordingComplete(blob, duration) {
+        setAudioSegments(audioSegments.concat({ id: nextID, data: blob, start: 0, stop: Math.random() * 2 + 0.5, track: nextTrack}));
+        nextID++;
+        nextTrack++;
+    }
 
     useEffect(() => {
         if (canvasRef.current) {
@@ -23,9 +29,10 @@ export default function RecordingCanvas({ width=600, height=200 }) {
     const draw = useCallback(() => {
         if (!analyser || !isRecording) return;
         
-        //for (let i = 0; i < audioSegments.length; i++) {
-        //    audioSegments[i].draw(context);
-        //}
+        for (let i = 0; i < audioSegments.length; i++) {
+            console.log(audioSegments.length);
+            //audioSegments[i].draw(context);
+        }
         
         let bufferLength = analyser.fftSize / 2;
 
@@ -76,7 +83,20 @@ export default function RecordingCanvas({ width=600, height=200 }) {
     }, [draw, context]);
 
     return (
-        <>
+        <>  
+            <div style={{width: "500px", height: "200px", overflowY: "scroll"}}>
+                {
+                    
+                    audioSegments.map( (item) => 
+                        {
+                            return (
+                                <AudioSegment key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track}/> 
+                            ); 
+                            
+                        }
+                    )
+                }
+            </div>
             <canvas ref={canvasRef} width={width} height={height}></canvas>
             <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
         </> 
