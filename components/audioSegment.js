@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import AudioCanvas from "./audioCanvas"
+import AudioCanvas from "./audioCanvas";
+import styles from "../styles/track.module.css";
 
 export default function AudioSegment({ audio, ctx, start, stop, track }) {
 	const [audioBuffer, setBuffer] = useState(null);
@@ -27,8 +28,8 @@ export default function AudioSegment({ audio, ctx, start, stop, track }) {
 		<>
 			{console.log(stop - start)}
 			<div>
-				<button onClick={play} style={{overflow: "hidden", whiteSpace: "nowrap", position: "relative", height: "50px", width: `${(stop - start)*100}px`}}>
-					Play Audio: {audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
+				<button className={styles.audioSegment} onClick={play} style={{width: `${(audioBuffer ? audioBuffer.duration.toFixed(1) : 1)*100}px`}}>
+					{audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
 				</button>
 			</div>
 		</>

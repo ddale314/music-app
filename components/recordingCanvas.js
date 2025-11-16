@@ -2,11 +2,12 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import RecordButton from '../components/recordButton';
 import AudioSegment from '../components/audioSegment';
+import styles from '../styles/track.module.css';
 
 let nextID = 0;
 let nextTrack = 1;
 
-export default function RecordingCanvas({ width=600, height=200 }) {
+export default function RecordingCanvas({ width=800, height=400 }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
     const [audioSegments, setAudioSegments] = useState([]);
@@ -52,7 +53,7 @@ export default function RecordingCanvas({ width=600, height=200 }) {
         let x = 0;
 
         for (let i = 0; i < (bufferLength / 4); i++) {
-            let y = data[i] * height + height / 2;
+            let y = data[i] * height / 2 + height / 2;
             if (i === 0) {
                 context.moveTo(x, y);
             }
@@ -84,20 +85,24 @@ export default function RecordingCanvas({ width=600, height=200 }) {
 
     return (
         <>  
-            <div style={{width: "500px", height: "200px", overflowY: "scroll"}}>
+            <div style={{width: `${width}px`, height: `${height}px`, overflowY: "scroll"}}>
                 {
                     
                     audioSegments.map( (item) => 
                         {
                             return (
-                                <AudioSegment key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track}/> 
+                                <>
+                                <div className={styles.track}>
+                                    <AudioSegment className={styles.audioSegment} key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track}/>
+                                </div> 
+                                </>
                             ); 
                             
                         }
                     )
                 }
             </div>
-            <canvas ref={canvasRef} width={width} height={height}></canvas>
+            <canvas ref={canvasRef} width={500} height={300}></canvas> <br />
             <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
         </> 
     );
