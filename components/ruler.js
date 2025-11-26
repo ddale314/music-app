@@ -1,5 +1,4 @@
-export default function Ruler({ tickGap, tickValue, tickUnit }) {
-	const defaultWidth = 30;
+export default function Ruler({ defaultWidth, tickGap, tickValue, tickUnit }) {
 	const small = defaultWidth * tickGap * (1 / tickUnit);
 	const large = small * tickValue;
 	const smallTickHeight = 10;

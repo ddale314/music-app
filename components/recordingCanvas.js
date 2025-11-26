@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import RecordButton from '../components/recordButton';
 import AudioSegment from '../components/audioSegment';
-import styles from '../styles/track.module.css';
+import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 
 let nextID = 0;
@@ -15,6 +15,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     const [tickGap, setTickGap] = useState(2);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
+    const [bpm, setBPM] = useState(100);
+    
+    const rulerWidth = 30;
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
@@ -25,7 +28,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 		backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
 		
 		backgroundRepeat: "repeat-x",
-		backgroundSize: `${30 * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
+		backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
 	}
     
     function handleRecordingComplete(blob, duration) {
@@ -98,35 +101,66 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }, [draw, context]);
 
     return (
-        <>
-            <div style={{width: `${width}px`, height: `${height}px`, overflowY: "scroll"}}>
-                <label>tick gap</label>
-                <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
-                
-                <label>time signature</label>
-                <select defaultValue={"4,4"} onChange={e => setTimeSignature(Array.from(e.target.value.split(","), (c) => parseInt(c)))}>
-                    <option value="3,4">3/4</option>
-                    <option value="4,4">4/4</option>
-                    <option value="6,8">6/8</option>
-                </select>
-                <Ruler tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/>
-                {
-                    audioSegments.map( (item) => 
-                        {
-                            return (
-                                <>
-                                <div className={styles.track} style={rulerStyle}>
-                                    <AudioSegment className={styles.audioSegment} key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track}/>
-                                </div> 
-                                </>
-                            ); 
-                            
-                        }
-                    )
-                }
+        <>  
+            <div style={{width: `${width}px`}}>
+                <label>
+                    tick gap
+                    <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
+                    {tickGap}
+                </label>
+                <label>
+                    bpm
+                    <input type="range" min="20" max="200" defaultValue="100" onChange={e => setBPM(e.target.value)}></input>
+                    {bpm}
+                </label>
+                <label>
+                    time signature
+                    <select defaultValue={"4,4"} onChange={e => setTimeSignature(Array.from(e.target.value.split(","), (c) => parseInt(c)))}>
+                        <option value="3,4">3/4</option>
+                        <option value="4,4">4/4</option>
+                        <option value="6,8">6/8</option>
+                    </select>
+                </label>
+                <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
+            </div>
+
+            <div className={styles.editorContainer}>
+                <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
+                    {
+                        [...Array(audioSegments.length).keys()].map( (i) => 
+                            {
+                                return (
+                                    <p style={{height: "50px"}}>track {i+1}</p>
+                                ); 
+                                
+                            }   
+                        )
+                    }
+                </div>
+                {/*<div className={styles.ruler} style={{width: `${width}px`, height: `${height}px`}}>
+                    
+                </div>*/}
+                <div className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
+                    <div className={styles.ruler}>
+                        <Ruler defaultWidth={rulerWidth} tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/> 
+                     </div> 
+                    {
+                        audioSegments.map( (item) => 
+                            {
+                                return (
+                                    <>
+                                    <div className={styles.track} style={rulerStyle}>
+                                        <AudioSegment className={styles.audioSegment} key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>
+                                    </div> 
+                                    </>
+                                ); 
+                                
+                            }
+                        )
+                    }
+                </div>
             </div>
             <canvas ref={canvasRef} width={500} height={300}></canvas> <br />
-            <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
         </> 
     );
 }

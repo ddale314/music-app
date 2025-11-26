@@ -41,3 +41,24 @@
 		calc(var(--tick-unit) * var(--small-tick-space)) var(--small-tick-height),
 		calc(var(--tick-unit) * var(--large-tick-space)) var(--large-tick-height);
 }*/
+
+.editor {
+	position: relative;
+}
+
+.trackLabel {
+	position: relative;
+	width: 100px;
+	top: 55px;
+}
+
+.editorContainer {
+	display: flex;
+	overflow-y: auto;
+}
+
+.ruler {
+	position: sticky;
+	align-self: flex-start;
+	top: 0px;
+}
