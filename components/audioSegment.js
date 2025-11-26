@@ -26,7 +26,6 @@ export default function AudioSegment({ audio, ctx, start, stop, track }) {
 	
 	return (
 		<>
-			{console.log(stop - start)}
 			<div>
 				<button className={styles.audioSegment} onClick={play} style={{width: `${(audioBuffer ? audioBuffer.duration.toFixed(1) : 1)*100}px`}}>
 					{audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
