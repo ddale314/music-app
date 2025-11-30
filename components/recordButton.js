@@ -14,6 +14,6 @@ export default function RecordButton( { isRecording, onClick, width, height} ) {
 		onClick();
 	}
 	return (
-		<button onClick={handleClick} style={{width :`${width}px`, height : `${height}px`, backgroundImage: image, backgroundSize : "cover"}}></button>
+		<button onClick={handleClick} style={{width :`${width}px`, height : `${height}px`, backgroundImage: image, backgroundSize : "cover", border: 0}}></button>
 	);
 }

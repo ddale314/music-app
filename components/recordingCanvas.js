@@ -4,25 +4,30 @@ import RecordButton from '../components/recordButton';
 import AudioSegment from '../components/audioSegment';
 import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
+import { Track, TrackComponent } from '../components/track';
 
 let nextID = 0;
-let nextTrack = 1;
 
 export default function RecordingCanvas({ width=800, height=400 }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
-    const [audioSegments, setAudioSegments] = useState([]);
 
     const [tickGap, setTickGap] = useState(2);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
     const [bpm, setBPM] = useState(100);
+    const [mouseX, setMouseX] = useState(0);
+
+    const [selectedTrack, setSelectedTrack] = useState(1);
+    const [tracks, setTracks] = useState([new Track(1)]);
     
     const rulerWidth = 30;
+    const boundingRectLeft = 482;
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
     const rulerStyle = {
-		width: "150%",
+        // make this width scale with the maximum audio segment length, or cap recording at certain length
+		width: "200%",
 		height: "50px",
 
 		backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
@@ -32,9 +37,47 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 	}
     
     function handleRecordingComplete(blob, duration) {
-        setAudioSegments(audioSegments.concat({ id: nextID, data: blob, start: 0, stop: Math.random() * 2 + 0.5, track: nextTrack}));
+        let tracksCopy = tracks.map((track) => track.copy());
+        let newTrack = tracksCopy[selectedTrack-1];
+        let newAudioSegment = { id: nextID, data: blob, start: 0, stop: Math.random() * 2 + 0.5, track: selectedTrack-1};
+        newTrack.addAudioSegment(newAudioSegment);
+        setTracks(tracksCopy);
         nextID++;
-        nextTrack++;
+    }
+
+    const [dragging, setDragging] = useState(false);
+
+    function handleMouseMove(e) {
+        //console.log(e.target.getBoundingClientRect().left);
+        if (!dragging) return;
+        let bounds = e.target.getBoundingClientRect();
+        setMouseX(e.screenX - bounds.left);
+    }
+
+    function handleClick(e) {
+        let bounds = e.target.getBoundingClientRect();
+        setMouseX(e.screenX - bounds.left);
+    }
+
+    function removeSelectedTrack() {
+        let updatedTracks = tracks.filter((t) => (t.id != selectedTrack))
+        for (let i = 0; i < updatedTracks.length; i++) {
+            let track = updatedTracks[i];
+            if (track.id > selectedTrack) {
+                track.setID(track.id-1);
+            }
+        }
+        let newSelectedTrack = 1;
+        if (selectedTrack == tracks.length) {
+            if (selectedTrack != 1) {
+                newSelectedTrack = selectedTrack - 1;
+            }
+        }
+        else if (selectedTrack != 1) {
+            newSelectedTrack = selectedTrack;
+        }
+        setTracks(updatedTracks);
+        setSelectedTrack(newSelectedTrack);
     }
 
     useEffect(() => {
@@ -46,11 +89,6 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     const draw = useCallback(() => {
         if (!analyser || !isRecording) return;
-        
-        for (let i = 0; i < audioSegments.length; i++) {
-            console.log(audioSegments.length);
-            //audioSegments[i].draw(context);
-        }
         
         let bufferLength = analyser.fftSize / 2;
 
@@ -100,8 +138,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }, [draw, context]);
 
+    function asAudioSegment(obj) {
+        return <AudioSegment className={styles.audioSegment} key={obj.id} audio={obj.data} ctx={audioContext} start={obj.start} stop={obj.stop} track={obj.track} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>;
+    }
+
     return (
         <>  
+            <button onClick={() => setTracks(tracks.concat(new Track(tracks.length == 0 ? 1 : tracks.at(-1).id + 1)))}>+</button>
+            <button onClick={removeSelectedTrack}>-</button>
             <div style={{width: `${width}px`}}>
                 <label>
                     tick gap
@@ -127,32 +171,28 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             <div className={styles.editorContainer}>
                 <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
                     {
-                        [...Array(audioSegments.length).keys()].map( (i) => 
+                        tracks.map((track) => 
                             {
                                 return (
-                                    <p style={{height: "50px"}}>track {i+1}</p>
+                                    <button onClick={() => setSelectedTrack(track.id)} style={{height: "50px", border: 0, backgroundColor: (selectedTrack == track.id ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)")}}>track {track.id}</button>
                                 ); 
                                 
                             }   
                         )
                     }
                 </div>
-                {/*<div className={styles.ruler} style={{width: `${width}px`, height: `${height}px`}}>
-                    
-                </div>*/}
-                <div className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
+                
+                {/* This appears to be fixed -> Maybe there is an issue if the size of the audio segment exceeds the size of the container? */}
+                <div onClick={handleClick} onMouseUp={(e) => {setDragging(false)}} onMouseDown={(e) => {setDragging(true)}} onMouseMove={handleMouseMove} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
                     <div className={styles.ruler}>
                         <Ruler defaultWidth={rulerWidth} tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/> 
+                        <div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+mouseX}px`}}>{'\u2193'}</div>  
                      </div> 
                     {
-                        audioSegments.map( (item) => 
+                        tracks.map( (track) =>
                             {
                                 return (
-                                    <>
-                                    <div className={styles.track} style={rulerStyle}>
-                                        <AudioSegment className={styles.audioSegment} key={item.id} audio={item.data} ctx={audioContext} start={item.start} stop={item.stop} track={item.track} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>
-                                    </div> 
-                                    </>
+                                    <TrackComponent audioSegments={track.audioSegments.map((item) => [asAudioSegment(item)])} rulerStyle={rulerStyle}/>
                                 ); 
                                 
                             }

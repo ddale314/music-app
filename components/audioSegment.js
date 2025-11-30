@@ -26,11 +26,11 @@ export default function AudioSegment({ audio, ctx, start, stop, track, size }) {
 	
 	return (
 		<>
-			<div>
+			<span>
 				<button className={styles.audioSegment} onClick={play} style={{padding: "0px", width: `${(audioBuffer ? audioBuffer.duration.toFixed(1) : 1)*size}px`}}>
 					{audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
 				</button>
-			</div>
+			</span>
 		</>
 	)
 }
