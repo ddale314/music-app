@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import RecordButton from '../components/recordButton';
-import AudioSegment from '../components/audioSegment';
+import { AudioSegment, AudioSegmentComponent } from '../components/audioSegment';
 import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 import { Track, TrackComponent } from '../components/track';
@@ -39,7 +39,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
-        let newAudioSegment = { id: nextID, data: blob, start: 0, stop: Math.random() * 2 + 0.5, track: selectedTrack-1};
+        let newAudioSegment = new AudioSegment(nextID, blob, 0, duration, selectedTrack - 1);
         newTrack.addAudioSegment(newAudioSegment);
         setTracks(tracksCopy);
         nextID++;
@@ -78,6 +78,12 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
         setTracks(updatedTracks);
         setSelectedTrack(newSelectedTrack);
+    }
+
+    function addTrack() {
+        let nextTrackID = (tracks.length == 0 ? 1 : tracks.at(-1).id + 1);
+        setTracks(tracks.concat(new Track(nextTrackID)));
+        setSelectedTrack(nextTrackID);
     }
 
     useEffect(() => {
@@ -138,13 +144,32 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }, [draw, context]);
 
-    function asAudioSegment(obj) {
-        return <AudioSegment className={styles.audioSegment} key={obj.id} audio={obj.data} ctx={audioContext} start={obj.start} stop={obj.stop} track={obj.track} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>;
+    function asAudioSegmentComponent(obj) {
+        return <AudioSegmentComponent className={styles.audioSegment} key={obj.id} ctx={audioContext} audioSegment={obj} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>;
+    }
+
+    function playAt(pos) {
+        for (let i = 0; i < tracks.length; i++) {
+            let track = tracks[i];
+            let segment = track.containing(pos);
+            if (segment) {
+                segment.play(audioContext, pos - segment.start);
+            }
+        }
+    }
+
+    function stopAll() {
+        for (let i = 0; i < tracks.length; i++) {
+            let track = tracks[i];
+            for (let j = 0; j < track.audioSegments.length; j++) {
+                track.audioSegments[j].stopAudio();
+            }
+        }
     }
 
     return (
         <>  
-            <button onClick={() => setTracks(tracks.concat(new Track(tracks.length == 0 ? 1 : tracks.at(-1).id + 1)))}>+</button>
+            <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
             <div style={{width: `${width}px`}}>
                 <label>
@@ -166,6 +191,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                     </select>
                 </label>
                 <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
+                <button onClick={() => playAt(mouseX / (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)))}>{'\u23F5'}</button>
+                <button onClick={stopAll}>{'\u23F8'}</button>
+
             </div>
 
             <div className={styles.editorContainer}>
@@ -192,7 +220,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                         tracks.map( (track) =>
                             {
                                 return (
-                                    <TrackComponent audioSegments={track.audioSegments.map((item) => [asAudioSegment(item)])} rulerStyle={rulerStyle}/>
+                                    <TrackComponent audioSegments={track.audioSegments.map((item) => [asAudioSegmentComponent(item)])} rulerStyle={rulerStyle}/>
                                 ); 
                                 
                             }

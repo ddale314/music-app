@@ -8,19 +8,23 @@ export class Track {
 
 	addAudioSegment(newSegment) {
 		this.audioSegments.push(newSegment);
-		console.log("added: ", this.audioSegments);
 	}
 
 	setID(newID) {
 		this.id = newID;
 	}
 
-	copy() {
-		console.log(this.audioSegments);
+	// returns the audio segment? which pos is contained in, if any
+	containing(pos) {
 		for (let i = 0; i < this.audioSegments.length; i++) {
-			console.log(this.audioSegments[i]);
+			let seg = this.audioSegments[i];
+			if (pos >= seg.start && pos <= seg.stop) {
+				return seg;
+			}
 		}
-		console.log("copy: ", structuredClone(this.audioSegments));
+	}
+
+	copy() {
 		return new Track(this.id, [...this.audioSegments]);
 	}
 }

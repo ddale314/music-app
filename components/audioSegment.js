@@ -2,33 +2,37 @@ import { useRef, useState, useEffect } from 'react';
 import AudioCanvas from "./audioCanvas";
 import styles from "../styles/editor.module.css";
 
-export default function AudioSegment({ audio, ctx, start, stop, track, size }) {
-	const [audioBuffer, setBuffer] = useState(null);
-	const [audioData, setData] = useState(null);
-	const [pos, setPos] = useState( {x: 0, y: 0} );
-	const [dragging, setDragStatus] = useState(false);
+export class AudioSegment {
+	constructor(id, data, start, stop, track) {
+		this.id = id;
+		this.data = data;
+		this.start = start;
+		this.stop = stop;
+		this.track = track;
+	}
 
-	useEffect(() => {
-		async function getAudio() {
-			let buffer = await ctx.decodeAudioData(await audio.arrayBuffer());
-			setBuffer(buffer);
-			setData(buffer.getChannelData(0));
-		}
-		getAudio();
-	}, [ctx]);
-
-	function play() {
+	async play(ctx, offset=0) {
+		let buffer = await ctx.decodeAudioData(await this.data.arrayBuffer());
 		const source = ctx.createBufferSource();
-		source.buffer = audioBuffer;
+		source.buffer = buffer;
 		source.connect(ctx.destination);
-		source.start();
+		source.start(0, offset);
+		this.source = source;
 	}
 	
+	stopAudio() {
+		if (this.source) {
+			this.source.stop();
+		}
+	}
+}
+
+export function AudioSegmentComponent({ ctx, audioSegment, size }) {
 	return (
 		<>
 			<span>
-				<button className={styles.audioSegment} onClick={play} style={{padding: "0px", width: `${(audioBuffer ? audioBuffer.duration.toFixed(1) : 1)*size}px`}}>
-					{audioBuffer ? audioBuffer.duration.toFixed(1) : ""} seconds
+				<button className={styles.audioSegment} style={{padding: "0px", width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
+					{audioSegment.stop - audioSegment.start} seconds
 				</button>
 			</span>
 		</>

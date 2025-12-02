@@ -4,7 +4,7 @@ const fftSize = 8192;
 
 export default function useRecorder(onRecordingComplete=null) {
 	const [isRecording, setIsRecording] = useState(false);
-	const [start, setStart] = useState(0);
+	let startTime;
 
 	const mediaStreamRef = useRef(null);
 	const audioContextRef = useRef(null);
@@ -40,14 +40,14 @@ export default function useRecorder(onRecordingComplete=null) {
 			
 			mediaRecorder.onstop = () => {
 				const audioBlob = new Blob(recordedData.current, { 'type': 'audio/ogg' });
-				const duration = Date.now() - start;
+				const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 				if (onRecordingComplete) {
 					onRecordingComplete(audioBlob, duration);
 				}
 			};
 
 			mediaRecorder.start();
-			setStart(Date.now());
+			startTime = Date.now();
 			setIsRecording(true);
 			console.log("Started recording");
 		}
