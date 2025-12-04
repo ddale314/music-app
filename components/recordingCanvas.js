@@ -19,6 +19,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     const [selectedTrack, setSelectedTrack] = useState(1);
     const [tracks, setTracks] = useState([new Track(1)]);
+    const [playLocation, setPlayLocation] = useState(-1);
     
     const rulerWidth = 30;
     const boundingRectLeft = 482;
@@ -39,7 +40,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
-        let newAudioSegment = new AudioSegment(nextID, blob, 0, duration, selectedTrack - 1);
+        let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(mouseX), getTimestamp(mouseX) + duration, selectedTrack - 1);
         newTrack.addAudioSegment(newAudioSegment);
         setTracks(tracksCopy);
         nextID++;
@@ -154,6 +155,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             let segment = track.containing(pos);
             if (segment) {
                 segment.play(audioContext, pos - segment.start);
+                setPlayLocation(getX(pos));
             }
         }
     }
@@ -167,10 +169,36 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }
 
+    function getTimestamp(pos) {
+        return pos / (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60));
+    }
+
+    function getX(timestamp) {
+        return timestamp * (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60));
+    }
+
+    function splitAtPlayhead() {
+        let track = tracks[selectedTrack-1];
+        let segment = track.containing(getTimestamp(mouseX));
+        if (!segment) return;
+        const [left, right] = segment.split(getTimestamp(mouseX) - segment.start, nextID);
+
+        let tracksCopy = tracks.map((track) => track.copy());
+        let newTrack = tracksCopy[selectedTrack-1];
+
+        newTrack.addAudioSegment(left);
+        newTrack.addAudioSegment(right);
+        newTrack.removeAudioSegment(segment);
+
+        setTracks(tracksCopy);
+        nextID += 2;
+    }
+
     return (
-        <>  
+        <>
             <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
+            <button onClick={splitAtPlayhead}>Split</button>
             <div style={{width: `${width}px`}}>
                 <label>
                     tick gap
@@ -191,7 +219,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                     </select>
                 </label>
                 <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
-                <button onClick={() => playAt(mouseX / (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)))}>{'\u23F5'}</button>
+                <button onClick={() => playAt(getTimestamp(mouseX))}>{'\u23F5'}</button>
                 <button onClick={stopAll}>{'\u23F8'}</button>
 
             </div>

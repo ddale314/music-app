@@ -40,7 +40,7 @@ export default function useRecorder(onRecordingComplete=null) {
 			
 			mediaRecorder.onstop = () => {
 				const audioBlob = new Blob(recordedData.current, { 'type': 'audio/ogg' });
-				const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+				const duration = (Date.now() - startTime) / 1000;
 				if (onRecordingComplete) {
 					onRecordingComplete(audioBlob, duration);
 				}
