@@ -1,16 +1,12 @@
 import Head from "next/head";
 import utilStyles from '../styles/utils.module.css';
 import Layout from "../components/layout";
-import AudioCanvas, { setMediaStream } from '../components/audioCanvas';
 import RecordingCanvas from "../components/recordingCanvas";
-import { Complex } from "../utils/complex";
-import { useEffect } from 'react';
-import RecordButton from "../components/recordButton"
-import useRecorder from "../hooks/useRecorder"
-import PlayButton from "../components/playButton"
+import useDraggable from "../hooks/useDraggable"
 
 // record, display, and edit audio
 export default function Recording() {
+    const {dragging, ref, pos} = useDraggable({x: 50, y: 50}, null, {x: 0, y: 0})
 
     return (
         <Layout>
@@ -25,6 +21,7 @@ export default function Recording() {
             {/*{isRecording && <AudioCanvas type='realtime' width={1000} height={100} analyser={analyser} sampleRate={audioContext.sampleRate}/>}*/}
 
             <RecordingCanvas />
+            <span ref={ref} style={{userSelect: "none", backgroundColor: "red", position: "absolute", left: pos.x, top: pos.y}}>drag me</span>
             
             {/*<PlayButton height={50} width={50}/>*/}
             <audio></audio>
