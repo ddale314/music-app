@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import AudioCanvas from "./audioCanvas";
 import styles from "../styles/editor.module.css";
+import useDraggable from "../hooks/useDraggable.js";
 
 export class AudioSegment {
 	constructor(id, data, start, stop, track, slice=0) {
@@ -46,58 +47,14 @@ export class AudioSegment {
 }
 
 export function AudioSegmentComponent({ ctx, audioSegment, size }) {
-	const [dragging, setDragging] = useState(false);
-	const [x, setX] = useState(0);
-	const [relX, setRelX] = useState(0);
-	const ref = useRef();
-
-	const gridX = 2;
-
-	useEffect(() => {
-		document.addEventListener("mousemove", handleMouseMove);
-		document.addEventListener("mouseup", handleMouseUp);
-
-		return () => {
-			document.removeEventListener("mousemove", handleMouseMove);
-			document.removeEventListener("mouseup", handleMouseUp);
-		};
-	}, [dragging]);
-
-	function handleMouseMove(e) {
-		if (!dragging) return;
-		let newX = Math.trunc((e.pageX - relX) / gridX) * gridX;
-		let diff = x - newX;
-		setX(newX);
-		if (diff + audioSegment.start >= 0) {
-			audioSegment.translateX(diff / size);
-			setX(x + diff);
-		}
-
-		//e.stopPropagation();
-		e.preventDefault();
-	}
-
-	function handleMouseUp(e) {
-		setDragging(false);
-		//e.stopPropagation();
-		e.preventDefault();
-	}
-	
-	function handleMouseDown(e) {
-		let box = ref.current.getBoundingClientRect();
-		setRelX(e.pageX - box.left)
-		setDragging(true);
-		//e.stopPropagation();
-		e.preventDefault();
-	}
+	const updateFunction = (pos) => audioSegment.setX(pos.x / size);
+	const {dragging, ref, pos} = useDraggable({x: 50, y: 50}, "x", {x: audioSegment.start * size, y: -1}, updateFunction)
 
 	return (
 		<>
-			<span ref={ref}>
-				<button onMouseMove={handleMouseMove} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} className={styles.audioSegment} style={{position: "absolute", padding: "0px", left: `${audioSegment.start * size}px`, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
-					{(audioSegment.stop - audioSegment.start).toFixed(1)} seconds
-				</button>
-			</span>
+			<button ref={ref} className={styles.audioSegment} style={{position: "absolute", padding: "0px", left: pos.x, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
+				{(audioSegment.stop - audioSegment.start).toFixed(1)} seconds
+			</button>
 		</>
 	)
 }
