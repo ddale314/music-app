@@ -11,6 +11,7 @@ export class AudioSegment {
 		this.stop = stop;
 		this.track = track;
 		this.slice = slice;
+		console.log(this.start);
 	}
 
 	async play(ctx, offset=0) {
@@ -46,9 +47,9 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, size }) {
-	const updateFunction = (pos) => audioSegment.setX(pos.x / size);
-	const {dragging, ref, pos} = useDraggable({x: 50, y: 50}, "x", {x: audioSegment.start * size, y: -1}, updateFunction)
+export function AudioSegmentComponent({ ctx, audioSegment, size, quantize }) {
+	const updateFunction = (pos) => {audioSegment.setX(pos.x / size)};
+	const {dragging, ref, pos} = useDraggable({x: quantize, y: 0}, "x", {x: audioSegment.start * size, y: 0}, updateFunction)
 
 	return (
 		<>

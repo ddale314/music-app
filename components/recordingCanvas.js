@@ -5,6 +5,7 @@ import { AudioSegment, AudioSegmentComponent } from '../components/audioSegment'
 import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 import { Track, TrackComponent } from '../components/track';
+import useDraggable from '../hooks/useDraggable';
 
 let nextID = 0;
 
@@ -15,7 +16,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [tickGap, setTickGap] = useState(2);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
     const [bpm, setBPM] = useState(100);
-    const [mouseX, setMouseX] = useState(0);
+    const [quantize, setQuantize] = useState(8);
 
     const [selectedTrack, setSelectedTrack] = useState(1);
     const [tracks, setTracks] = useState([new Track(1)]);
@@ -25,6 +26,8 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const boundingRectLeft = 482;
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
+    // playhead
+    const { dragging, ref, pos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0})
 
     const rulerStyle = {
         // make this width scale with the maximum audio segment length, or cap recording at certain length
@@ -40,24 +43,10 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
-        let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(mouseX), getTimestamp(mouseX) + duration, selectedTrack - 1);
+        let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1);
         newTrack.addAudioSegment(newAudioSegment);
         setTracks(tracksCopy);
         nextID++;
-    }
-
-    const [dragging, setDragging] = useState(false);
-
-    function handleMouseMove(e) {
-        //console.log(e.target.getBoundingClientRect().left);
-        if (!dragging) return;
-        let bounds = e.target.getBoundingClientRect();
-        setMouseX(e.screenX - bounds.left);
-    }
-
-    function handleClick(e) {
-        let bounds = e.target.getBoundingClientRect();
-        setMouseX(e.screenX - bounds.left);
     }
 
     function removeSelectedTrack() {
@@ -146,7 +135,11 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }, [draw, context]);
 
     function asAudioSegmentComponent(obj) {
-        return <AudioSegmentComponent className={styles.audioSegment} key={obj.id} ctx={audioContext} audioSegment={obj} size={rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60)}/>;
+        return <AudioSegmentComponent 
+            className={styles.audioSegment} key={obj.id} ctx={audioContext} 
+            audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} 
+            quantize={rulerWidth * tickGap / quantize}
+        />;
     }
 
     function playAt(pos) {
@@ -170,18 +163,18 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }
 
     function getTimestamp(pos) {
-        return pos / (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60));
+        return pos / (rulerWidth * tickGap / timeSignature[1] * (bpm / 60));
     }
 
     function getX(timestamp) {
-        return timestamp * (rulerWidth * tickGap * (1 / timeSignature[1]) * (bpm / 60));
+        return timestamp * (rulerWidth * tickGap / timeSignature[1] * (bpm / 60));
     }
 
     function splitAtPlayhead() {
         let track = tracks[selectedTrack-1];
-        let segment = track.containing(getTimestamp(mouseX));
+        let segment = track.containing(getTimestamp(pos.x));
         if (!segment) return;
-        const [left, right] = segment.split(getTimestamp(mouseX) - segment.start, nextID);
+        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID);
 
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
@@ -194,11 +187,19 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         nextID += 2;
     }
 
+    // current bugs: 
+    // changing tick gap does not modify audiosegment position correctly
+    // splitting broke
+    // position of playhead is offset from mouse by fixed amount
+
     return (
         <>
             <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
             <button onClick={splitAtPlayhead}>Split</button>
+            <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
+            <button onClick={() => playAt(getTimestamp(pos.x))}>{'\u23F5'}</button>
+            <button onClick={stopAll}>{'\u23F8'}</button>
             <div style={{width: `${width}px`}}>
                 <label>
                     tick gap
@@ -218,9 +219,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                         <option value="6,8">6/8</option>
                     </select>
                 </label>
-                <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
-                <button onClick={() => playAt(getTimestamp(mouseX))}>{'\u23F5'}</button>
-                <button onClick={stopAll}>{'\u23F8'}</button>
+                <label>
+                    quantize
+                    <select defaultValue={8} onChange={e => setQuantize(e.target.value)}>
+                        <option value={16}>1/16</option>
+                        <option value={8}>1/8</option>
+                        <option value={4}>1/4</option>
+                    </select>
+                </label>
 
             </div>
 
@@ -232,18 +238,17 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                                 return (
                                     <button onClick={() => setSelectedTrack(track.id)} style={{height: "50px", border: 0, backgroundColor: (selectedTrack == track.id ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)")}}>track {track.id}</button>
                                 ); 
-                                
                             }   
                         )
                     }
                 </div>
                 
                 {/* This appears to be fixed -> Maybe there is an issue if the size of the audio segment exceeds the size of the container? */}
-                <div onClick={handleClick} onMouseUp={(e) => {setDragging(false)}} onMouseDown={(e) => {setDragging(true)}} onMouseMove={handleMouseMove} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
+                <div ref={ref} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
                     <div className={styles.ruler}>
                         <Ruler defaultWidth={rulerWidth} tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/> 
-                        <div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+mouseX}px`}}>{'\u2193'}</div>  
-                     </div> 
+                        <div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+pos.x}px`}}>{'\u2193'}</div>
+                     </div>
                     {
                         tracks.map( (track) =>
                             {
