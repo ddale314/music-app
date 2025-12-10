@@ -28,7 +28,6 @@ export class AudioSegment {
 
 	split(pos, nextID) {
 		let splitPos = (pos / (this.stop - this.start)) * this.data.size;
-		// this doesnt work because there is a file header that will get cut off
 		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track);
 		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, pos);
 		return [left, right];
@@ -47,13 +46,14 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, size, quantize }) {
-	const updateFunction = (pos) => {audioSegment.setX(pos.x / size)};
-	const {dragging, ref, pos} = useDraggable({x: quantize, y: 0}, "x", {x: audioSegment.start * size, y: 0}, updateFunction)
+export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected }) {
+	const updateFunction = (pos) => {if (pos.x >= 0) audioSegment.setX(pos.x / size)};
+	const {dragging, ref, pos} = useDraggable({x: quantize, y: 0}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
+	const color = selected ? "rgb(0, 136, 34)" :  "rgb(0, 228, 57)";
 
 	return (
 		<>
-			<button ref={ref} className={styles.audioSegment} style={{position: "absolute", padding: "0px", left: pos.x, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
+			<button ref={ref} onClick={() => {select(audioSegment)}} className={styles.audioSegment} style={{backgroundColor: color, position: "absolute", padding: "0px", left: audioSegment.start * size, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
 				{(audioSegment.stop - audioSegment.start).toFixed(1)} seconds
 			</button>
 		</>

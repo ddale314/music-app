@@ -21,13 +21,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [selectedTrack, setSelectedTrack] = useState(1);
     const [tracks, setTracks] = useState([new Track(1)]);
     const [playLocation, setPlayLocation] = useState(-1);
+    const [selectedSegment, setSelectedSegment] = useState(null);
     
     const rulerWidth = 30;
     const boundingRectLeft = 482;
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
     // playhead
-    const { dragging, ref, pos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0})
+    const { dragging, ref, pos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
 
     const rulerStyle = {
         // make this width scale with the maximum audio segment length, or cap recording at certain length
@@ -134,11 +135,21 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }, [draw, context]);
 
+    function toggleSelect(audioSegment) {
+        if (selectedSegment == audioSegment) {
+            setSelectedSegment(null);
+        }
+        else {
+            setSelectedSegment(audioSegment);
+        }
+    }
+
     function asAudioSegmentComponent(obj) {
         return <AudioSegmentComponent 
             className={styles.audioSegment} key={obj.id} ctx={audioContext} 
             audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} 
-            quantize={rulerWidth * tickGap / quantize}
+            quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
+            selected={obj == selectedSegment}
         />;
     }
 
@@ -187,10 +198,20 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         nextID += 2;
     }
 
-    // current bugs: 
-    // changing tick gap does not modify audiosegment position correctly
-    // splitting broke
-    // position of playhead is offset from mouse by fixed amount
+    function deleteSelectedSegment() {
+        let trackNum = selectedSegment.track;
+        let tracksCopy = tracks.map((track) => track.copy());
+        let newTrack = tracksCopy[trackNum];
+        newTrack.removeAudioSegment(selectedSegment);
+        setTracks(tracksCopy);
+    }
+
+    // current bugs:
+    // position of playhead is offset from mouse by fixed amount - i guess this works? kinda janky though
+    // idk theres some weird spot where dragging scrolls horizontally instead of doing other dragging stuff
+
+    // implement:
+    // scroll when dragging goes over edge
 
     return (
         <>
@@ -200,6 +221,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
             <button onClick={() => playAt(getTimestamp(pos.x))}>{'\u23F5'}</button>
             <button onClick={stopAll}>{'\u23F8'}</button>
+            <button onClick={deleteSelectedSegment}>&#x1F5D1;</button>
             <div style={{width: `${width}px`}}>
                 <label>
                     tick gap

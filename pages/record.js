@@ -17,7 +17,6 @@ export default function Recording() {
             </section>
             {/*<button onClick={startRecording}>Start displaying audio</button>*/}
             {/*{isRecording && <AudioCanvas type='realtime' width={1000} height={100} analyser={analyser} sampleRate={audioContext.sampleRate}/>}*/}
-
             <RecordingCanvas />
             {/*<PlayButton height={50} width={50}/>*/}
             <audio></audio>

@@ -3,7 +3,6 @@
 }
 
 .audioSegment {
-	background-color: rgb(0, 228, 57);
 	border-radius: 10px;
 	overflow: hidden;
 	white-space: nowrap;
@@ -11,9 +10,9 @@
 	height: 50px;
 }
 
-.audioSegment:hover {
+/*.audioSegment:hover {
 	background-color: rgb(0, 136, 34);
-}
+}*/
 
 
 /*.ruler {

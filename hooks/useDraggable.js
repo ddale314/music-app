@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset={x: 0, y: 0}) {
+export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal) {
 	const [dragging, setDragging] = useState(false);
 	const [pos, setPos] = useState({x: initialPos.x, y: initialPos.y});
 	const [relPos, setRelPos] = useState({x: 0, y: 0});
@@ -37,18 +37,22 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 	function handleMouseMove(e) {
 		if (!dragging) return;
 		let parentRect = ref.current.offsetParent.getBoundingClientRect();
+
+		const element = ref.current.parentElement;
+		console.log(element.scrollLeft);
 		//console.log(ref.current.getBoundingClientRect().left);
-		let diffX = relPos.x;
-		let diffY = relPos.y;
+		let diffX = normal ? relPos.x : 0;
+		let diffY = normal ? relPos.y : 0;
 		if (ref.current.offsetParent != document.body) {
 			diffX += parentRect.left;
 			diffY += parentRect.top;
 		}
 		let p = {
-			x: Math.trunc((e.pageX - diffX) / grid.x) * grid.x,
-			y: Math.trunc((e.pageY - diffY) / grid.y) * grid.y
+			x: Math.trunc((e.pageX - diffX - customOffset.x + element.scrollLeft) / grid.x) * grid.x,
+			y: Math.trunc((e.pageY - diffY - customOffset.y + element.scrollTop) / grid.y) * grid.y
 		};
-		//console.log(p.x);
+		console.log("pos", p.x, "diff:", diffX, "page:", e.pageX);
+		console.log("offset:", customOffset.x);
 		if (fixAxis == "y") {
 			p.x = initialPos.x;
 		}
