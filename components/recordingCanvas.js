@@ -206,15 +206,6 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         setTracks(tracksCopy);
     }
 
-    function shiftSelected(e) {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const formJSON = Object.fromEntries(formData.entries());
-        const shift = parseFloat(formJSON["shift"]);
-        
-        console.log(shift);
-    }
-
     // current bugs:
     // position of playhead is offset from mouse by fixed amount - i guess this works? kinda janky though
     // idk theres some weird spot where dragging scrolls horizontally instead of doing other dragging stuff
@@ -224,13 +215,6 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     return (
         <>
-            <form onSubmit={(e) => shiftSelected(e)}>
-                <label>
-                    shift
-                    <input name="shift" type="number" min="0.5" max="2" step="0.1" defaultValue="1"></input>
-                </label>
-                <button type="submit">Apply</button>
-            </form>
             <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
             <button onClick={splitAtPlayhead}>Split</button>

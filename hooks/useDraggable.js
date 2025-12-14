@@ -39,6 +39,8 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		let parentRect = ref.current.offsetParent.getBoundingClientRect();
 
 		const element = ref.current.parentElement;
+		console.log(element.scrollLeft);
+		//console.log(ref.current.getBoundingClientRect().left);
 		let diffX = normal ? relPos.x : 0;
 		let diffY = normal ? relPos.y : 0;
 		if (ref.current.offsetParent != document.body) {
@@ -49,6 +51,8 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 			x: Math.trunc((e.pageX - diffX - customOffset.x + element.scrollLeft) / grid.x) * grid.x,
 			y: Math.trunc((e.pageY - diffY - customOffset.y + element.scrollTop) / grid.y) * grid.y
 		};
+		console.log("pos", p.x, "diff:", diffX, "page:", e.pageX);
+		console.log("offset:", customOffset.x);
 		if (fixAxis == "y") {
 			p.x = initialPos.x;
 		}
@@ -82,6 +86,7 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		if (fixAxis == "x") {
 			rel.y = initialPos.y;
 		}
+		console.log("rel:", rel.x)
 		setRelPos(rel);
 		setDragging(true);
 		e.preventDefault();
