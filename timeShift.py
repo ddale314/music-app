@@ -1,18 +1,29 @@
 import librosa
 import numpy as np
 import soundfile as sf
-import sys
+from argparse import ArgumentParser
+from pydub import AudioSegment as A_S
 
-file_path = sys.argv[1]
-process_type = sys.argv[2]
-stretch = float(sys.argv[3])
+parser = ArgumentParser()
+parser.add_argument("file_path", help="path to WAV audio file", type=str)
+parser.add_argument("--shift", help="pitch shifts the file by the given scale factor while keeping duration the same", action="store_true")
+parser.add_argument("stretch", help="scale factor", type=float)
+parser.add_argument("--splice", nargs=2, help="splices the audio before processing (times given in seconds)", metavar=("START", "STOP"), default=False, type=int)
+args = parser.parse_args()
 
-waveform, sr = librosa.load(file_path, sr=None, mono=False)
+if args.splice:
+	t1 = args.splice[0] * 1000
+	t2 = args.splice[1] * 1000
+	audio = A_S.from_wav(args.file_path)
+	audio = audio[t1:t2]
+	audio.export(args.file_path, format="wav")
+
+waveform, sr = librosa.load(args.file_path, sr=None, mono=False)
 channels, orig_len = waveform.shape
 
 win_len = 4096
 hop_len = win_len // 4
-synth_hop_len = int(hop_len * stretch) 
+synth_hop_len = int(hop_len * args.stretch) 
 win_func = np.hanning(win_len)
 
 frames = int(np.ceil(orig_len / hop_len))
@@ -49,7 +60,7 @@ synth_freqs = magnitudes * np.exp(1j * synth_phases)
 
 windowed = np.fft.ifft(synth_freqs).real * win_func
 
-new_len = int(orig_len * stretch) + win_len
+new_len = int(orig_len * args.stretch) + win_len
 ola = np.zeros((channels, new_len))
 norm_buffer = np.zeros(new_len)
 for i in range(frames):
@@ -59,9 +70,11 @@ for i in range(frames):
 
 norm_buffer[norm_buffer < 1e-10] = 1.0
 ola /= norm_buffer[None, :]
-ola = ola[:, :int(orig_len * stretch)]
+ola = ola[:, :int(orig_len * args.stretch)]
 
-if process_type == "stretch":
+if args.shift:
+	sf.write('test_output.wav', ola.T, int(sr * args.stretch), 'PCM_24')
+else:
 	sf.write('test_output.wav', ola.T, sr, 'PCM_24')
-if process_type == "shift":
-	sf.write('test_output.wav', ola.T, int(sr * stretch), 'PCM_24')
+
+print("finished")
