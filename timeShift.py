@@ -10,7 +10,6 @@ parser.add_argument("--shift", help="pitch shifts the file by the given scale fa
 parser.add_argument("stretch", help="scale factor", type=float)
 parser.add_argument("--splice", nargs=2, help="splices the audio before processing (times given in seconds)", metavar=("START", "STOP"), default=False, type=int)
 args = parser.parse_args()
-print(args)
 
 if args.splice:
 	t1 = args.splice[0] * 1000
@@ -77,3 +76,5 @@ if args.shift:
 	sf.write('test_output.wav', ola.T, int(sr * args.stretch), 'PCM_24')
 else:
 	sf.write('test_output.wav', ola.T, sr, 'PCM_24')
+
+print("finished")

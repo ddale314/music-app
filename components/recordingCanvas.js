@@ -206,13 +206,16 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         setTracks(tracksCopy);
     }
 
-    function shiftSelected(e) {
+    async function shiftSelected(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
-        
-        console.log(shift);
+        const response = await fetch("http://localhost:3000/api/shift", {
+           method: "POST",
+           headers: {'Content-Type': 'application/json' },
+           body: JSON.stringify({ factor: shift, type: "shift" })
+        });
     }
 
     // current bugs:
