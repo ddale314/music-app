@@ -4,21 +4,19 @@ import styles from "../styles/editor.module.css";
 import useDraggable from "../hooks/useDraggable.js";
 
 export class AudioSegment {
-	constructor(id, data, start, stop, track, slice=0) {
+	constructor(id, data, start, stop, track, slice=0, filePath=null) {
 		this.id = id;
 		this.data = data;
 		this.start = start;
 		this.stop = stop;
 		this.track = track;
 		this.slice = slice;
-		console.log(this.start);
+		this.filePath = filePath;
 	}
 
 	async play(ctx, offset=0) {
 		console.log(this.data);
-		let arrayBuffer = await this.data.arrayBuffer();
-		console.log(arrayBuffer);
-		let buffer = await ctx.decodeAudioData(arrayBuffer);
+		let buffer = await ctx.decodeAudioData(this.data);
 		const source = ctx.createBufferSource();
 		source.buffer = buffer;
 		source.connect(ctx.destination);
@@ -27,7 +25,6 @@ export class AudioSegment {
 	}
 
 	split(pos, nextID) {
-		let splitPos = (pos / (this.stop - this.start)) * this.data.size;
 		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track);
 		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, pos);
 		return [left, right];

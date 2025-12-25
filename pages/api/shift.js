@@ -5,11 +5,12 @@ export default async function handler(req, res) {
 	let type = req.body.type;
 
 	let python;
+	let file = "test_2.wav";
 	if (type == "shift") {
-		python = spawn("python3", ["timeShift.py", "--shift", "test.wav", factor]);
+		python = spawn("python3", ["timeShift.py", "--shift", file, factor]);
 	}
 	else {
-		python = spawn("python3", ["timeShift.py", "test.wav", factor]);
+		python = spawn("python3", ["timeShift.py", file, factor]);
 	}
 	
 	python.stdout.on("data", (data) => {
@@ -24,5 +25,4 @@ export default async function handler(req, res) {
 		console.log(`exited with code ${code}`);
 		return res.status(200).json({message: "worked", data: req.body});
 	});
-
 }

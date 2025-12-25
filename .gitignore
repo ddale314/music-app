@@ -17,6 +17,7 @@
 
 # misc
 .DS_Store
+/public/audio
 
 # debug
 npm-debug.log*

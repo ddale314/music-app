@@ -8,6 +8,7 @@ import { Track, TrackComponent } from '../components/track';
 import useDraggable from '../hooks/useDraggable';
 
 let nextID = 0;
+const SERVER_PATH = "http://localhost:3000/api";
 
 export default function RecordingCanvas({ width=800, height=400 }) {
     const canvasRef = useRef(null);
@@ -41,13 +42,31 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 		backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
 	}
     
-    function handleRecordingComplete(blob, duration) {
+    async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
-        let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1);
-        newTrack.addAudioSegment(newAudioSegment);
-        setTracks(tracksCopy);
-        nextID++;
+        let data = await blob.arrayBuffer();
+
+        const dataString = Buffer.from(data).toString("utf8");
+
+        const response = await fetch(`${SERVER_PATH}/upload`, {
+            method: "POST",
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ fileName: `segment${nextID}`, buffer: dataString })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log(result.path);
+
+            let newAudioSegment = new AudioSegment(nextID, data, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
+            newTrack.addAudioSegment(newAudioSegment);
+            setTracks(tracksCopy);
+            nextID++;
+        }
+        else {
+            console.log("Could not create audio segment");
+        }
     }
 
     function removeSelectedTrack() {
@@ -199,6 +218,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }
 
     function deleteSelectedSegment() {
+        if (!selectedSegment) return;
         let trackNum = selectedSegment.track;
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[trackNum];
@@ -211,7 +231,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
-        const response = await fetch("http://localhost:3000/api/shift", {
+        const response = await fetch(`${SERVER_PATH}/shift`, {
            method: "POST",
            headers: {'Content-Type': 'application/json' },
            body: JSON.stringify({ factor: shift, type: "shift" })
