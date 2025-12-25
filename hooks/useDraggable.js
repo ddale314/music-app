@@ -31,6 +31,7 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 			x: Math.trunc(pos.x / grid.x) * grid.x,
 			y: Math.trunc(pos.y / grid.y) * grid.y
 		}
+		updateFunction(p);
 		setPos(p);
 	}, [grid.x, grid.y])
 

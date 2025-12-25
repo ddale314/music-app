@@ -14,12 +14,16 @@ args = parser.parse_args()
 if args.splice:
 	t1 = args.splice[0] * 1000
 	t2 = args.splice[1] * 1000
-	audio = A_S.from_wav(args.file_path)
+	audio = A_S.from_file(args.file_path)
 	audio = audio[t1:t2]
 	audio.export(args.file_path, format="wav")
 
 waveform, sr = librosa.load(args.file_path, sr=None, mono=False)
+if len(waveform.shape) == 1:
+	waveform = np.array([waveform])
 channels, orig_len = waveform.shape
+
+print(f"loaded audio with {channels} channel(s) and {orig_len} samples")
 
 win_len = 4096
 hop_len = win_len // 4
@@ -73,8 +77,8 @@ ola /= norm_buffer[None, :]
 ola = ola[:, :int(orig_len * args.stretch)]
 
 if args.shift:
-	sf.write('test_output.wav', ola.T, int(sr * args.stretch), 'PCM_24')
+	sf.write(args.file_path, ola.T, int(sr * args.stretch), 'PCM_24')
 else:
-	sf.write('test_output.wav', ola.T, sr, 'PCM_24')
+	sf.write(args.file_path, ola.T, sr, 'PCM_24')
 
 print("finished")

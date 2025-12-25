@@ -11,7 +11,7 @@ export class Track {
 	}
 
 	removeAudioSegment(segment) {
-		this.audioSegments = this.audioSegments.filter(item => item != segment);
+		this.audioSegments = this.audioSegments.filter(item => item.id != segment.id);
 	}
 
 	setID(newID) {

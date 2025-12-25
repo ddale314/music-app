@@ -10,9 +10,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "extendable-media-recorder": "^9.2.32",
+    "extendable-media-recorder-wav-encoder": "^7.0.133",
     "next": "^14.2.35",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "wavefile": "^11.0.0"
   },
   "devDependencies": {
     "eslint": "^8.48.0",

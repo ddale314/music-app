@@ -46,8 +46,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
         let data = await blob.arrayBuffer();
-
-        const dataString = Buffer.from(data).toString("utf8");
+        const dataString = Buffer.from(data).toString("base64");
 
         const response = await fetch(`${SERVER_PATH}/upload`, {
             method: "POST",
@@ -59,7 +58,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             const result = await response.json();
             console.log(result.path);
 
-            let newAudioSegment = new AudioSegment(nextID, data, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
+            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
             newTrack.addAudioSegment(newAudioSegment);
             setTracks(tracksCopy);
             nextID++;
@@ -223,19 +222,44 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[trackNum];
         newTrack.removeAudioSegment(selectedSegment);
+        console.log(newTrack);
         setTracks(tracksCopy);
     }
 
+    // somehow the shifted version ends up being larger in size
     async function shiftSelected(e) {
         e.preventDefault();
+        if (!selectedSegment) return;
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
+        
         const response = await fetch(`${SERVER_PATH}/shift`, {
            method: "POST",
            headers: {'Content-Type': 'application/json' },
-           body: JSON.stringify({ factor: shift, type: "shift" })
+           body: JSON.stringify({ factor: shift, type: "shift", filePath: selectedSegment.filePath })
         });
+
+        if (response.ok) {
+            const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
+            const arrayBuffer = await shiftedAudio.arrayBuffer();
+            const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+            console.log(blob);
+            let newSegment = selectedSegment.copy()
+            newSegment.data = blob;
+            
+            let trackNum = selectedSegment.track;
+            let tracksCopy = tracks.map((track) => track.copy());
+            let newTrack = tracksCopy[trackNum];
+            newTrack.removeAudioSegment(selectedSegment);
+            newTrack.addAudioSegment(newSegment);
+            setTracks(tracksCopy);
+
+            setSelectedSegment(newSegment);
+        }
+        else {
+            console.log("Could not shift audio segment");
+        }
     }
 
     // current bugs:

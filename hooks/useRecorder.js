@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react'
+"use client";
+
+import { useState, useRef } from 'react';
 
 const fftSize = 8192;
 
@@ -16,7 +18,14 @@ export default function useRecorder(onRecordingComplete=null) {
 
 	const startRecording = async () => {
 		try {
-			const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const { MediaRecorder, register } = await import('extendable-media-recorder');
+			const { connect } = await import('extendable-media-recorder-wav-encoder');
+			
+			try {
+				await register(await connect());
+			}
+			catch (e) {}
+			const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: false} });
 			mediaStreamRef.current = mediaStream;
 
 			const audioContext = new AudioContext();
@@ -29,7 +38,7 @@ export default function useRecorder(onRecordingComplete=null) {
 
 			analyserNodeRef.current = analyser;
 
-			const mediaRecorder = new MediaRecorder(mediaStream);
+			const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: "audio/wav" });
 			mediaRecorderRef.current = mediaRecorder;
 
 			recordedData.current = [];

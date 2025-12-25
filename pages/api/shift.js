@@ -1,16 +1,17 @@
 const { spawn } = require("child_process");
+const fs = require("fs");
 
 export default async function handler(req, res) {
 	let factor = req.body.factor;
 	let type = req.body.type;
+	let filePath = req.body.filePath;
 
 	let python;
-	let file = "test_2.wav";
 	if (type == "shift") {
-		python = spawn("python3", ["timeShift.py", "--shift", file, factor]);
+		python = spawn("python3", ["timeShift.py", "--shift", filePath, factor]);
 	}
 	else {
-		python = spawn("python3", ["timeShift.py", file, factor]);
+		python = spawn("python3", ["timeShift.py", filePath, factor]);
 	}
 	
 	python.stdout.on("data", (data) => {
@@ -23,6 +24,6 @@ export default async function handler(req, res) {
 
 	python.on("close", (code) => {
 		console.log(`exited with code ${code}`);
-		return res.status(200).json({message: "worked", data: req.body});
+		return res.status(200).json({message: "worked"});
 	});
 }
