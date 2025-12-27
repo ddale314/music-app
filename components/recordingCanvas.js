@@ -23,6 +23,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [tracks, setTracks] = useState([new Track(1)]);
     const [playLocation, setPlayLocation] = useState(-1);
     const [selectedSegment, setSelectedSegment] = useState(null);
+    const [shifting, setShifting] = useState(false);
     
     const rulerWidth = 30;
     const boundingRectLeft = 482;
@@ -45,6 +46,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack-1];
+        console.log(blob);
         let data = await blob.arrayBuffer();
         const dataString = Buffer.from(data).toString("base64");
 
@@ -167,7 +169,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             className={styles.audioSegment} key={obj.id} ctx={audioContext} 
             audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} 
             quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
-            selected={obj == selectedSegment}
+            selected={obj == selectedSegment} processing={obj == selectedSegment && shifting}
         />;
     }
 
@@ -234,6 +236,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
         
+        setShifting(true);
         const response = await fetch(`${SERVER_PATH}/shift`, {
            method: "POST",
            headers: {'Content-Type': 'application/json' },
@@ -243,6 +246,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         if (response.ok) {
             const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
             const arrayBuffer = await shiftedAudio.arrayBuffer();
+            console.log(arrayBuffer);
             const blob = new Blob([arrayBuffer], { type: "audio/wav" });
             console.log(blob);
             let newSegment = selectedSegment.copy()
@@ -256,6 +260,8 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             setTracks(tracksCopy);
 
             setSelectedSegment(newSegment);
+
+            setShifting(false);
         }
         else {
             console.log("Could not shift audio segment");

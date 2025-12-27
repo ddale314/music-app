@@ -48,7 +48,7 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected }) {
+export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected, processing }) {
 	const updateFunction = (pos) => {if (pos.x >= 0) audioSegment.setX(pos.x / size)};
 	const {dragging, ref, pos} = useDraggable({x: quantize, y: 1}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
 	const color = selected ? "rgb(0, 136, 34)" :  "rgb(0, 228, 57)";
@@ -56,7 +56,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, selec
 	return (
 		<>
 			<button ref={ref} onClick={() => {select(audioSegment)}} className={styles.audioSegment} style={{backgroundColor: color, position: "absolute", padding: "0px", left: audioSegment.start * size, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
-				{(audioSegment.stop - audioSegment.start).toFixed(1)} seconds
+				{processing ? "Processing..." : `${(audioSegment.stop - audioSegment.start).toFixed(1)} seconds`}
 			</button>
 		</>
 	)

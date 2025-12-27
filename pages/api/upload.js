@@ -4,6 +4,7 @@ export default async function handler(req, res) {
 	let fileName = req.body.fileName;
 	let buffer = req.body.buffer;
 
+	console.log(buffer.size);
 	let upload = await uploadAudio(fileName, buffer);
 	console.log("path:", upload);
 	if (upload) {
