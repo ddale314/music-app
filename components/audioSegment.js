@@ -50,7 +50,7 @@ export class AudioSegment {
 
 export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected, processing }) {
 	const updateFunction = (pos) => {if (pos.x >= 0) audioSegment.setX(pos.x / size)};
-	const {dragging, ref, pos} = useDraggable({x: quantize, y: 1}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
+	const {dragging, ref, pos, setPos} = useDraggable({x: quantize, y: 1}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
 	const color = selected ? "rgb(0, 136, 34)" :  "rgb(0, 228, 57)";
 
 	return (

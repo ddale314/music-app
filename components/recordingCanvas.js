@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import RecordButton from '../components/recordButton';
 import { AudioSegment, AudioSegmentComponent } from '../components/audioSegment';
@@ -6,6 +6,7 @@ import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 import { Track, TrackComponent } from '../components/track';
 import useDraggable from '../hooks/useDraggable';
+import ResizableComponent from "./resizable";
 
 let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
@@ -30,7 +31,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
     // playhead
-    const { dragging, ref, pos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
+    const { dragging, ref, pos, setPos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
 
     const rulerStyle = {
         // make this width scale with the maximum audio segment length, or cap recording at certain length
@@ -268,15 +269,17 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }
 
-    // current bugs:
-    // position of playhead is offset from mouse by fixed amount - i guess this works? kinda janky though
+    // current issues:
     // idk theres some weird spot where dragging scrolls horizontally instead of doing other dragging stuff
+    // shifting takes long time on first run, maybe imports?
+    // tick gap and bpm might be broken
 
     // implement:
     // scroll when dragging goes over edge
 
     return (
-        <>
+        <>  
+            <ResizableComponent initialWidth={200} height={50}/>
             <form onSubmit={(e) => shiftSelected(e)}>
                 <label>
                     shift

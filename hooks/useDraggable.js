@@ -98,6 +98,7 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 	return {
 		dragging: dragging,
 		ref: ref,
-		pos: pos
+		pos: pos,
+		setPos: setPos
 	};
 }

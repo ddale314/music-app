@@ -9,7 +9,7 @@ export default function Home() {
       <Head>
         <title>{siteTitle}</title>
       </Head>
-      <section className={utilStyles.titleLarge + ' ' + utilStyles.textGradient}>
+      <section className={utilStyles.titleSmall + ' ' + utilStyles.textGradient}>
         <p>Stuff</p>
       </section>
     </Layout>

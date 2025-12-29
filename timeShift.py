@@ -11,12 +11,12 @@ parser.add_argument("stretch", help="scale factor", type=float)
 parser.add_argument("--splice", nargs=2, help="splices the audio before processing (times given in seconds)", metavar=("START", "STOP"), default=False, type=int)
 args = parser.parse_args()
 
-if args.splice:
-	t1 = args.splice[0] * 1000
-	t2 = args.splice[1] * 1000
-	audio = A_S.from_file(args.file_path)
-	audio = audio[t1:t2]
-	audio.export(args.file_path, format="wav")
+#if args.splice:
+#	t1 = args.splice[0] * 1000
+#	t2 = args.splice[1] * 1000
+#	audio = A_S.from_file(args.file_path)
+#	audio = audio[t1:t2]
+#	audio.export(args.file_path, format="wav")
 
 waveform, sr = librosa.load(args.file_path, sr=None, mono=False)
 if len(waveform.shape) == 1:

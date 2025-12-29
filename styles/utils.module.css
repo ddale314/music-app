@@ -6,6 +6,14 @@
     margin: 1rem 0;
 }
 
+.titleSmall {
+    font-size: 5rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: -0.05rem;
+    margin: 1rem 0;
+}
+
 .heading2Xl {
     font-size: 2.5rem;
     line-height: 1.2;
