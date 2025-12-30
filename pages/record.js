@@ -8,7 +8,6 @@ import { SegmentEditor } from "../components/segmentEditor";
 
 // record, display, and edit audio
 export default function Recording() {
-    const [showEditor, setShowEditor] = useState(false);
     return (
         <Layout>
             <Head>
@@ -17,9 +16,6 @@ export default function Recording() {
             <section className = {utilStyles.titleSmall + ' ' + utilStyles.textGradient}>
                 <p>Record</p>
             </section>
-            <br />
-            <button onClick={() => setShowEditor(!showEditor)}>{showEditor ? "Close" : "Open"} Editor</button>
-            {showEditor && <SegmentEditor />}
             <RecordingCanvas />
             <audio></audio>
         </Layout>

@@ -7,6 +7,8 @@ import Ruler from '../components/ruler';
 import { Track, TrackComponent } from '../components/track';
 import useDraggable from '../hooks/useDraggable';
 import ResizableComponent from "./resizable";
+import ClipDisplay from "./clipDisplay";
+import SegmentEditor from "./segmentEditor";
 
 let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
@@ -29,20 +31,22 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const rulerWidth = 30;
     const boundingRectLeft = 482;
 
+    const [showEditor, setShowEditor] = useState(false);
+
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
     // playhead
     const { dragging, ref, pos, setPos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
 
-    const rulerStyle = {
-        // make this width scale with the maximum audio segment length, or cap recording at certain length
-		width: "200%",
-		height: "50px",
+    //const rulerStyle = {
+    //    // make this width scale with the maximum audio segment length, or cap recording at certain length
+	//	width: "200%",
+	//	height: "50px",
 
-		backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
+	//	backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
 		
-		backgroundRepeat: "repeat-x",
-		backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
-	}
+	//	backgroundRepeat: "repeat-x",
+	//	backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
+	//}
     
     async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
@@ -278,7 +282,8 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     // scroll when dragging goes over edge
 
     return (
-        <>  
+        <>   
+            {showEditor && <SegmentEditor width={width} height={height} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}}/>}
             <ResizableComponent initialWidth={200} height={50}/>
             <form onSubmit={(e) => shiftSelected(e)}>
                 <label>
@@ -294,6 +299,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             <button onClick={() => playAt(getTimestamp(pos.x))}>{'\u23F5'}</button>
             <button onClick={stopAll}>{'\u23F8'}</button>
             <button onClick={deleteSelectedSegment}>&#x1F5D1;</button>
+            <button onClick={() => setShowEditor(!showEditor)}>{showEditor ? "Close" : "Open"} Editor</button>
+
+            {/* Controls */}
             <div style={{width: `${width}px`}}>
                 <label>
                     tick gap
@@ -323,8 +331,8 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                 </label>
 
             </div>
-
-            <div className={styles.editorContainer}>
+            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}} selected={{selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack}} playhead={{ref: ref, pos: pos}} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
+            {/*<div className={styles.editorContainer}>
                 <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
                     {
                         tracks.map((track) => 
@@ -336,8 +344,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                         )
                     }
                 </div>
-                
-                {/* This appears to be fixed -> Maybe there is an issue if the size of the audio segment exceeds the size of the container? */}
+             
+                This appears to be fixed -> Maybe there is an issue if the size of the audio segment exceeds the size of the container?
+
                 <div ref={ref} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
                     <div className={styles.ruler}>
                         <Ruler defaultWidth={rulerWidth} tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/> 
@@ -354,7 +363,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                         )
                     }
                 </div>
-            </div>
+            </div>*/}
             <canvas ref={canvasRef} width={500} height={300}></canvas> <br />
         </> 
     );
