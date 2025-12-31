@@ -1,8 +1,7 @@
-import React, { useRef, useState, useEffect, useCallback, Fragment } from 'react';
+import { useRef, useState, useEffect, useCallback, Fragment } from 'react';
 import { Complex } from '../utils/complex';
 import { fft } from '../utils/fft';
-import AudioSegment from './audioSegment';
-import useRecorder from '../hooks/useRecorder';
+import WaveformVisualizer from './waveform';
 
 const fftSize = 8192;
 let bufferLength = fftSize / 2;
@@ -56,13 +55,14 @@ function indexToFrequency(idx, sampleRate) {
 }
 
 export default function AudioCanvas({ type, width=400, height=200, data=null, analyser, sampleRate }) {
-    const canvasRef = useRef(null);
-    const [context, setContext] = useState(null);
-    
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
 
-    function handleRealtimeAudio() {
+    const [frequencyData, setFrequencyData] = useState(data);
+
+    function handleAudio() {
+        if (type != "realtime") return data;
+        if (!analyser) return;
         let frequencyData = getFrequencyData(analyser);
 
         let [currentNote, currentFrequency] = getFrequencyAndNote(frequencyData, sampleRate);
@@ -72,66 +72,9 @@ export default function AudioCanvas({ type, width=400, height=200, data=null, an
         return frequencyData;
     }
 
-    const draw = useCallback(() => {
-        if (type == "realtime" && !analyser) return;
-        let frequencyData = data;
-        if (type == "realtime") {
-            frequencyData = handleRealtimeAudio();
-        }
-
-        context.fillStyle = 'rgb(255, 255, 255)';
-        context.fillRect(0, 0, width, height);
-
-        context.lineWidth = 3;
-        context.strokeStyle = 'rgb(100, 150, 255)';
-
-        context.beginPath();
-
-        let increment = width * 1.0 / (bufferLength / 4);
-        let x = 0;
-
-        for (let i = 0; i < (bufferLength / 4); i++) {
-            let magnitude = frequencyData[i].magnitude();
-            let y = -magnitude + height;
-            if (i === 0) {
-                context.moveTo(x, y);
-            }
-            else {
-                context.lineTo(x, y);
-            }
-            x += increment;
-        }
-
-        context.stroke();
-    
-    }, [context, height, width]);
-
-    useEffect(() => {
-        if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            setContext(ctx);
-        }
-    }, [])
-    
-    useEffect(() => {
-        let animationFrameId;
-
-        if (context) {
-            const render = () => {
-                draw();
-                animationFrameId = requestAnimationFrame(render);
-            }
-            render();
-        }
-
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-        }
-    }, [draw, context]);
-
     return (
         <>
-            <canvas ref={canvasRef} width={width} height={height}></canvas>
+            <WaveformVisualizer width={width} height={height} bufferLength={bufferLength} getData={handleAudio} dataType={"complex"}/>
             <div>Frequency: {frequency}, Note: {note}</div>
         </>
     );

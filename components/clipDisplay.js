@@ -12,6 +12,8 @@ import useDraggable from '../hooks/useDraggable';
 		- ascomp converts an object representation to a jsx component
 	rulerSettings: width, gap, sig
 	selected, playhead are info for audiosegment case
+		- selected: selectedTrack, setSelectedTrack
+		- playhead: ref, pos
 */
 export default function ClipDisplay({ components, width, height, rulerSettings, asComp, type, selected=null, playhead=null }) {
 	const rulerStyle = {

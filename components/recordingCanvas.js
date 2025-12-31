@@ -9,15 +9,14 @@ import useDraggable from '../hooks/useDraggable';
 import ResizableComponent from "./resizable";
 import ClipDisplay from "./clipDisplay";
 import SegmentEditor from "./segmentEditor";
+import WaveformVisualizer from './waveform';
 
+const fftSize = 8192;
+const bufferLength = fftSize / 2;
 let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
 export default function RecordingCanvas({ width=800, height=400 }) {
-    // time series visualization
-    const canvasRef = useRef(null);
-    const [context, setContext] = useState(null);
-
     const [tickGap, setTickGap] = useState(2);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
     const [bpm, setBPM] = useState(100);
@@ -107,63 +106,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         setSelectedTrack(nextTrackID);
     }
 
-    useEffect(() => {
-        if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            setContext(ctx);
-        }
-    }, []);
-
-    const draw = useCallback(() => {
+    const getDisplayableAudioData = useCallback(() => {
         if (!analyser || !isRecording) return;
-        
-        let bufferLength = analyser.fftSize / 2;
 
         let data = new Float32Array(bufferLength);
         analyser.getFloatTimeDomainData(data);
-        // analyser.getFloatFrequencyData(data);
 
-        context.fillStyle = 'rgb(255, 255, 255)';
-        context.fillRect(0, 0, width, height);
-
-        context.lineWidth = 3;
-        context.strokeStyle = 'rgb(100, 150, 255)';
-
-        context.beginPath();
-
-        let increment = width * 1.0 / (bufferLength / 4);
-        let x = 0;
-
-        for (let i = 0; i < (bufferLength / 4); i++) {
-            let y = data[i] * height / 2 + height / 2;
-            if (i === 0) {
-                context.moveTo(x, y);
-            }
-            else {
-                context.lineTo(x, y);
-            }
-
-            x += increment;
-        }
-    
-        context.stroke();
-    }, [context, height, width, isRecording]);
-
-    useEffect(() => {
-        let animationFrameId;
-
-        if (context) {
-            const render = () => {
-                draw();
-                animationFrameId = requestAnimationFrame(render);
-            }
-            render();
-        }
-
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-        }
-    }, [draw, context]);
+        return data;
+    }, [analyser, isRecording]);
 
     function toggleSelect(audioSegment) {
         if (selectedSegment == audioSegment) {
@@ -374,7 +324,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                     }
                 </div>
             </div>*/}
-            <canvas ref={canvasRef} width={500} height={300}></canvas> <br />
+            <WaveformVisualizer width={500} height={300} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"}/>
         </> 
     );
 }
