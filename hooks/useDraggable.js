@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 
+/* 
+	grid: object with x and y, component will "snap" to coordinates in multiples of grid.x and grid.y
+	fixAxis: fix movement horizontally (x) or vertically (y)
+	updateFunction: called every time position is updated
+	normal: whether or not the ref is attached to the element actually being moved (see recordingCanvas)
+*/
 export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal) {
 	const [dragging, setDragging] = useState(false);
 	const [pos, setPos] = useState({x: initialPos.x, y: initialPos.y});
+	// stores mouse position relative to coordinates of bounding box (?)
 	const [relPos, setRelPos] = useState({x: 0, y: 0});
 	const ref = useRef();
 
@@ -26,6 +33,7 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 
 	}, [dragging]);
 
+	// recalculate position when grid parameter is modified (e.g. when quantization value is changed)
 	useEffect(() => {
 		let p = {
 			x: Math.trunc(pos.x / grid.x) * grid.x,

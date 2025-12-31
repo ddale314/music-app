@@ -7,6 +7,7 @@ import useRecorder from '../hooks/useRecorder';
 const fftSize = 8192;
 let bufferLength = fftSize / 2;
 
+// equal temperament
 const INTERVAL = Math.pow(2, 1/12)
 const NOTES = ['A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A']
 
@@ -57,6 +58,7 @@ function indexToFrequency(idx, sampleRate) {
 export default function AudioCanvas({ type, width=400, height=200, data=null, analyser, sampleRate }) {
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
+    
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
 

@@ -18,9 +18,12 @@ export default function useRecorder(onRecordingComplete=null) {
 
 	const startRecording = async () => {
 		try {
+			// there were issues when static import was used
 			const { MediaRecorder, register } = await import('extendable-media-recorder');
+			// built-in mediarecorder doesn't support wav
 			const { connect } = await import('extendable-media-recorder-wav-encoder');
 			
+			// fail silently if register is somehow called multiple times
 			try {
 				await register(await connect());
 			}

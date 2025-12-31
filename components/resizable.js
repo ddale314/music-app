@@ -5,6 +5,8 @@ export default function ResizableComponent({ initialWidth, height }) {
 	const [resizing, setResizing] = useState(false);
 	const [width, setWidth] = useState(initialWidth);
 	const {dragging, ref, pos, setPos} = useDraggable({x: 1, y: height}, null, {x: 0, y: 0}, ()=>{}, {x: 0, y: 0}, true);
+	
+	// initial mouseX, component width, component x coordinate
 	const dragStart = useRef({
 		x: 0,
 		w: 0,
@@ -34,13 +36,17 @@ export default function ResizableComponent({ initialWidth, height }) {
 	}
 
 	// cant use resizing here, need to create a ref
+	// treat left resize as a translation left by the same amount as width increase to keep right edge constant
 	function handleMouseMoveLeft(e) {
+		// compute new width, pos as difference from original state
+		// computing based on current state (e.g. e.pageX - pos.x) caused some issues
 		const deltaX = e.pageX - dragStart.current.x;
 		setWidth(dragStart.current.w - deltaX);
 		const newLeft = dragStart.current.l + deltaX;
 		setPos({x: newLeft, y: pos.y});
 	}
 
+	// right resize is just a width increase
 	function handleMouseMoveRight(e) {
 		const deltaX = e.pageX - dragStart.current.x;
 		setWidth(dragStart.current.w + deltaX);
@@ -55,8 +61,11 @@ export default function ResizableComponent({ initialWidth, height }) {
 
 	return (
 		<div>
+			{/* left handle */}
 			<span onMouseDown={handleMouseDownLeft} style={{backgroundColor: "grey", position: "absolute", left: pos.x - 10, top: pos.y, userSelect: "none", height: height}}>{"<"}</span>
+			{/* draggable portion */}
 			<span ref={ref} style={{position: "absolute", backgroundColor: resizing ? "green" : "red", left: pos.x, top: pos.y, width: width, height: height}}>Drag Me!</span>
+			{/* right handle */}
 			<span onMouseDown={handleMouseDownRight} style={{backgroundColor: "grey", position: "absolute", left: pos.x + width, top: pos.y, userSelect: "none", height: height}}>{">"}</span>
 		</div>
 	);

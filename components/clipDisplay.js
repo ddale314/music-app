@@ -60,17 +60,20 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 				<div ref={playhead.ref} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
 					<div className={styles.ruler}>
 						<Ruler defaultWidth={rulerSettings.width} tickGap={rulerSettings.gap} tickValue={rulerSettings.sig[0]} tickUnit={rulerSettings.sig[1]}/> 
+
+						{/* playhead */}
 						<div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+playhead.pos.x}px`}}>{'\u2193'}</div>
 						</div>
 						{components.map( (comp) => {
-								return (
-									<TrackComponent audioSegments={comp.audioSegments.map((item) => [asComp(item)])} rulerStyle={rulerStyle}/>
+							return (
+								<TrackComponent audioSegments={comp.audioSegments.map((item) => [asComp(item)])} rulerStyle={rulerStyle}/>
 							); 
 								
 						})}
 				</div>
 
-			:
+				:
+
 				<div className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
 					<div className={styles.ruler}>
 						<Ruler defaultWidth={rulerSettings.width} tickGap={rulerSettings.gap} tickValue={rulerSettings.sig[0]} tickUnit={rulerSettings.sig[1]}/> 

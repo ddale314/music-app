@@ -33,9 +33,3 @@ export function fft(amplitudes, inverse) {
         w = w.multiply(step);
     }
 }
-
-export function getLargestFrequency(data) {
-    for (let i = 0; i < data.length; i++) {
-        
-    }
-}

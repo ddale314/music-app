@@ -18,7 +18,7 @@ export class Track {
 		this.id = newID;
 	}
 
-	// returns the audio segment? which pos is contained in, if any
+	// returns the audiosegment which the time given by pos is contained in, if any
 	containing(pos) {
 		for (let i = 0; i < this.audioSegments.length; i++) {
 			let seg = this.audioSegments[i];

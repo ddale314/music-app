@@ -14,6 +14,7 @@ let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
 export default function RecordingCanvas({ width=800, height=400 }) {
+    // time series visualization
     const canvasRef = useRef(null);
     const [context, setContext] = useState(null);
 
@@ -26,7 +27,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [tracks, setTracks] = useState([new Track(1)]);
     const [playLocation, setPlayLocation] = useState(-1);
     const [selectedSegment, setSelectedSegment] = useState(null);
-    const [shifting, setShifting] = useState(false);
+    const [shifting, setShifting] = useState(false); // whether time shift processing is taking place
     
     const rulerWidth = 30;
     const boundingRectLeft = 482;
@@ -34,7 +35,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [showEditor, setShowEditor] = useState(false);
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
+
     // playhead
+    // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
     const { dragging, ref, pos, setPos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
 
     //const rulerStyle = {
@@ -55,6 +58,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         let data = await blob.arrayBuffer();
         const dataString = Buffer.from(data).toString("base64");
 
+        // create file based on buffer
         const response = await fetch(`${SERVER_PATH}/upload`, {
             method: "POST",
             headers: {'Content-Type': 'application/json'},
@@ -65,6 +69,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             const result = await response.json();
             console.log(result.path);
 
+            // create audiosegment based on blob (arraybuffer can only be "used" once)
             let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
             newTrack.addAudioSegment(newAudioSegment);
             setTracks(tracksCopy);
@@ -178,13 +183,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         />;
     }
 
+    // start playing audiosegments across all tracks which have data at the current playhead position
     function playAt(pos) {
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
             let segment = track.containing(pos);
             if (segment) {
                 segment.play(audioContext, pos - segment.start);
-                setPlayLocation(getX(pos));
+                setPlayLocation(getPos(pos));
             }
         }
     }
@@ -202,7 +208,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         return pos / (rulerWidth * tickGap / timeSignature[1] * (bpm / 60));
     }
 
-    function getX(timestamp) {
+    function getPos(timestamp) {
         return timestamp * (rulerWidth * tickGap / timeSignature[1] * (bpm / 60));
     }
 
@@ -237,6 +243,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     async function shiftSelected(e) {
         e.preventDefault();
         if (!selectedSegment) return;
+        // get shift multiplier from form
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
@@ -249,23 +256,23 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         });
 
         if (response.ok) {
-            const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
-            const arrayBuffer = await shiftedAudio.arrayBuffer();
-            console.log(arrayBuffer);
-            const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+            // fetch looks for http://localhost:3000/url, files in public folder are accessible at /
+            // filePath is in the form ./public/url
+            const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", "")); 
+            const blob = await shiftedAudio.blob();
             console.log(blob);
             let newSegment = selectedSegment.copy()
             newSegment.data = blob;
             
+            // replace old audiosegment with new one
             let trackNum = selectedSegment.track;
             let tracksCopy = tracks.map((track) => track.copy());
             let newTrack = tracksCopy[trackNum];
+
             newTrack.removeAudioSegment(selectedSegment);
             newTrack.addAudioSegment(newSegment);
             setTracks(tracksCopy);
-
             setSelectedSegment(newSegment);
-
             setShifting(false);
         }
         else {
@@ -283,6 +290,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
 
     return (
         <>   
+
             {showEditor && <SegmentEditor width={width} height={height} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}}/>}
             <ResizableComponent initialWidth={200} height={50}/>
             <form onSubmit={(e) => shiftSelected(e)}>
@@ -292,6 +300,8 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                 </label>
                 <button type="submit">Apply</button>
             </form>
+
+            {/* Buttons */}
             <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
             <button onClick={splitAtPlayhead}>Split</button>

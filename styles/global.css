@@ -27,10 +27,7 @@ a:hover {
   text-decoration: underline;
 }
 
-h1,
-h2,
-p,
-ul {
+h1, h2, p, ul {
   margin: 0;
 }
 
