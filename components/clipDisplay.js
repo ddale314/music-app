@@ -15,16 +15,30 @@ import useDraggable from '../hooks/useDraggable';
 		- selected: selectedTrack, setSelectedTrack
 		- playhead: ref, pos
 */
-export default function ClipDisplay({ components, width, height, rulerSettings, asComp, type, selected=null, playhead=null }) {
-	const rulerStyle = {
-		// make this width scale with the maximum audio segment length, or cap recording at certain length
-		width: "200%",
-		height: "50px",
+export default function ClipDisplay({ components, width, height, rulerSettings, type, asComp=null, selected=null, playhead=null, range=null, addNote=null }) {
+	const editorScrollRef = useRef(null);
 
-		backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
-		
-		backgroundRepeat: "repeat-x",
-		backgroundSize: `${rulerSettings.width * rulerSettings.gap * (rulerSettings.sig[0] / rulerSettings.sig[1])}px 100px`
+	function rulerStyle(height) {
+		let style =  {
+			// make this width scale with the maximum audio segment length, or cap recording at certain length
+			width: "200%",
+			height: height,
+
+			backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
+			
+			backgroundRepeat: "repeat-x",
+			backgroundSize: `${rulerSettings.width * rulerSettings.gap * (rulerSettings.sig[0] / rulerSettings.sig[1])}px 100px`
+		}
+		return style;
+	}
+
+	function handleRightClick(e) {
+		const topOffset = 550;
+		e.preventDefault();
+		const rect = e.target.getBoundingClientRect();
+		let pos = {x: e.pageX - rect.left, y: e.pageY-topOffset+editorScrollRef.current.scrollTop};
+		addNote(pos);
+		console.log(pos);
 	}
 
 	let sidebar;
@@ -43,9 +57,9 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 	else {
 		sidebar = <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
 					{
-						components.map((comp) => {
+						range.map((item) => {
 								return (
-									<div> hi </div>
+									<div style={{height: "30px"}}>{item}</div>
 								);  
 						})
 					}
@@ -53,7 +67,7 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 	}
 
 	return (
-		<div className={styles.editorContainer}>
+		<div className={styles.editorContainer} ref={editorScrollRef}>
 			
 			{sidebar}
 					
@@ -65,13 +79,14 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 
 						{/* playhead */}
 						<div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+playhead.pos.x}px`}}>{'\u2193'}</div>
-						</div>
-						{components.map( (comp) => {
-							return (
-								<TrackComponent audioSegments={comp.audioSegments.map((item) => [asComp(item)])} rulerStyle={rulerStyle}/>
-							); 
-								
-						})}
+					</div>
+
+					{components.map( (comp) => {
+						return (
+							<TrackComponent audioSegments={comp.audioSegments.map((item) => [asComp(item)])} rulerStyle={rulerStyle("50px")}/>
+						); 
+							
+					})}
 				</div>
 
 				:
@@ -81,12 +96,16 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 						<Ruler defaultWidth={rulerSettings.width} tickGap={rulerSettings.gap} tickValue={rulerSettings.sig[0]} tickUnit={rulerSettings.sig[1]}/> 
 					</div>
 
-					{components.map( (comp) => {
-						return (
-							asComp(comp)
-						); 
-							
-					})}
+					<div style={{position: "relative"}} onContextMenu={handleRightClick}>
+						{range.map( () => {
+							return (
+								<div className={styles.track} style={rulerStyle("30px")}></div>
+							); 	
+						})}
+						{components.map( (comp) => {
+							return comp;
+						})}
+					</div>
 				</div>
 			}
 		</div>

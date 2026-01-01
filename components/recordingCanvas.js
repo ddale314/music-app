@@ -8,7 +8,7 @@ import { Track, TrackComponent } from '../components/track';
 import useDraggable from '../hooks/useDraggable';
 import ResizableComponent from "./resizable";
 import ClipDisplay from "./clipDisplay";
-import SegmentEditor from "./segmentEditor";
+import { SegmentEditor } from "./segmentEditor";
 import WaveformVisualizer from './waveform';
 
 const fftSize = 8192;
@@ -241,8 +241,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     return (
         <>   
 
-            {showEditor && <SegmentEditor width={width} height={height} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}}/>}
-            <ResizableComponent initialWidth={200} height={50}/>
+            {showEditor && <SegmentEditor width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}}/>}
             <form onSubmit={(e) => shiftSelected(e)}>
                 <label>
                     shift
