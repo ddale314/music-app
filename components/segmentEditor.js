@@ -5,7 +5,7 @@ import ResizableComponent from "./resizable";
 /*
 	scale is the scale factor to transform screen coordinates to time coordinates
 */
-export function SegmentEditor({ width, height, rulerSettings, quantize, scale }) {
+export function SegmentEditor({ width, height, rulerSettings, quantize, scale, segmentID, addSegment }) {
 	// index A0 as 0, default C2
 	const [range, setRange] = useState({min: 9, size: 14});
 	const [noteData, setNoteData] = useState([]);
@@ -74,18 +74,31 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale })
 		/>
 	}
 
-	function createAudioFile() {
-		console.log(noteData);
+	async function createAudioFile() {
+		noteData.sort((obj1, obj2) => obj1.x - obj2.x);
 		let notes = noteData.map(obj => yCoordToNote(obj.y));
 		console.log(notes);
 		let durations = noteData.map(obj => widthToDuration(obj.w));
-		console.log(durations);
 		let steps = notes.map(note => noteToStepsFromC0(note));
-		console.log(steps);
 		
 		// zips elements of steps and durations and flattens the result 1 dimension
 		let interleaved = steps.flatMap((item, idx) => [item, durations[idx]]);
 		console.log(interleaved);
+
+		console.log(`segment${segmentID}.wav`);
+
+		const response = await fetch("http://localhost:3000/api/synth", {
+			method: "POST",
+			headers: {'Content-Type': 'application/json' },
+           	body: JSON.stringify({ notes: interleaved, fileName: `segment${segmentID}.wav` })
+		});
+
+		let totalDuration = durations.reduce((sum, value) => sum + value, 0);
+
+		if (response.ok) {
+			console.log("Created audio from editor");
+			addSegment(`segment${segmentID}.wav`, totalDuration);
+		}
 	}
 
 	return (

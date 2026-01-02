@@ -139,7 +139,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             let track = tracks[i];
             let segment = track.containing(pos);
             if (segment) {
-                segment.play(audioContext, pos - segment.start);
+                segment.play((audioContext || new AudioContext()), pos - segment.start);
                 setPlayLocation(getPos(pos));
             }
         }
@@ -230,6 +230,20 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }
 
+    async function createSegmentFromFile(fileName, duration) {
+        const newAudio = await fetch(`/audio/${fileName}`);
+        const blob = await newAudio.blob();
+        console.log(blob);
+        
+        let newAudioSegment = new AudioSegment(nextID, blob, 0, duration, selectedTrack - 1, 0, `./public/audio/${fileName}`);
+        let tracksCopy = tracks.map((track) => track.copy());
+        let newTrack = tracksCopy[selectedTrack-1];
+
+        newTrack.addAudioSegment(newAudioSegment);
+        setTracks(tracksCopy);
+        nextID++;
+    }
+
     // current issues:
     // idk theres some weird spot where dragging scrolls horizontally instead of doing other dragging stuff
     // shifting takes long time on first run, maybe imports?
@@ -241,7 +255,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     return (
         <>   
 
-            {showEditor && <SegmentEditor width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}}/>}
+            {showEditor && <SegmentEditor width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}} segmentID={nextID} addSegment={createSegmentFromFile}/>}
             <form onSubmit={(e) => shiftSelected(e)}>
                 <label>
                     shift
