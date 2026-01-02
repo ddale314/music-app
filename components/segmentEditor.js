@@ -6,12 +6,14 @@ import ResizableComponent from "./resizable";
 	scale is the scale factor to transform screen coordinates to time coordinates
 */
 export function SegmentEditor({ width, height, rulerSettings, quantize, scale, segmentID, addSegment }) {
-	// index A0 as 0, default C2
-	const [range, setRange] = useState({min: 9, size: 14});
+	// index A0 as 0, default C3
+	const [range, setRange] = useState({min: 27, size: 24});
 	const [noteData, setNoteData] = useState([]);
 
 	const BAND_HEIGHT = 30;
 	const INITIAL_SEGMENT_WIDTH = 50;
+
+	const NOTES = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]
 
 	function getRangeAsArray() {
 		let arr = [];
@@ -23,9 +25,8 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	}
 
 	function indexToNote(idx) {
-		let diff = idx % 7;
-		let note = String.fromCharCode(65 + diff); // "A" = 65
-		let octave = Math.floor((idx + 5) / 7); // indexed from A0, C1 corresponds to range.min of 2, so add 5
+		let note = NOTES[idx % 12];
+		let octave = Math.floor((idx + 9) / 12); // indexed from A0, C1 corresponds to range.min of 3, so add 9
 		return note + octave;
 	}
 
@@ -48,13 +49,13 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		return getRangeAsArray()[y / BAND_HEIGHT];
 	}
 
-	// steps from C: A is 9 steps above C, B is 11, etc.
-	const STEPS = [9, 11, 0, 2, 4, 5, 7]
+	// steps from C: A is 9 steps above C, A# is 10, B is 11, etc.
+	const STEPS = [9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 	function noteToStepsFromC0(note) {
-		let diff = note.charCodeAt(0) - 65; // "A" = 65
-		let steps = STEPS[diff];
-		let octaveSteps = parseInt(note.charAt(1)) * 12;
+		let idx = NOTES.indexOf(note.substring(0, note.length - 1));
+		let steps = STEPS[idx];
+		let octaveSteps = parseInt(note.charAt(note.length - 1)) * 12;
 		return octaveSteps + steps;
 	}
 
@@ -107,14 +108,14 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 			<label>
 				range min
 				{/* A0 to C5 */}
-				<input type="range" min="0" max="30" defaultValue="9" onChange={e => setRange({min: parseInt(e.target.value), size: range.size})}></input>
+				<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({min: parseInt(e.target.value), size: range.size})}></input>
 				{range.min}
             </label>
 			<br/>
 			<label>
 				range size
 				{/* 1 to 3 octaves */}
-				<input type="range" min="7" max="21" defaultValue="14" onChange={e => setRange({min: range.min, size: parseInt(e.target.value)})}></input>
+				<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({min: range.min, size: parseInt(e.target.value)})}></input>
 				{range.size}
 			</label>
 			<button onClick={createAudioFile}>Create</button>
