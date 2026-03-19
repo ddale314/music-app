@@ -24,65 +24,45 @@ f32 note(f32 steps_from_c0) {
 }
 
 #define WRITE_STR(f, s) fwrite((s), 1, sizeof(s) - 1, f)
-#define SR 44100
-#define PI 3.1415926535f
+
+const u32 SR = 44100;
+const f32 PI = 3.1415926535f;
 
 struct note {
 	f32 steps_from_c0;
+	f32 start_time;
 	f32 duration;
 };
 
-#define BPM 100
-
-//struct note notes[] = {
-//	{ 59, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 1.5f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 1.5f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 62, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 55, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 57, 0.75f },
-//	//{ INT16_MIN, 5.0f / BPM},
-//	{ 59, 3 },
-//};
-
 int main(int argc, char *argv[]) {
-	assert(argc >= 4 && argc % 2 == 0);
-	struct note notes[argc - 2];
+	// requires exactly prog + path + 3 * num_notes arguments
+	assert(argc >= 2 && (argc - 2) % 3 == 0);
+	
+	u32 note_num = (argc - 2) / 3;
+	struct note notes[note_num];
 
 	char* file_path = argv[1];
 
-	i16 idx = 0;
-	for (int i = 2; i < argc; i++) {
-		if (i % 2 == 0) {
-			notes[idx].steps_from_c0 = (f32)atof(argv[i]);
-		}
-		else {
-			notes[idx].duration = (f32)atof(argv[i]);
-			idx++;
-		}
-		//printf("%s\n", argv[i]);
+	int argv_idx = 2;
+	for (u32 i = 0; i < note_num; i++) {
+		notes[i].steps_from_c0 = (f32)atof(argv[argv_idx++]);
+		notes[i].start_time = (f32)atof(argv[argv_idx++]);
+		notes[i].duration = (f32)atof(argv[argv_idx++]);
 	}
 
 	printf("Writing to: %s\n", file_path);
 	FILE* f = fopen(file_path, "wb");
+	if (!f) {
+		printf("Failed to open file for writing\n");
+		return 1;
+	}
 
-	u32 note_num = sizeof(notes) / sizeof(notes[0]);
 	f32 len = 0.0f;
 	for (u32 i = 0; i < note_num; i++) {
-		len += notes[i].duration;
+		f32 end_time = notes[i].start_time + notes[i].duration;
+		if (end_time > len) {
+			len = end_time;
+		}
 	}
 
 	u32 num_samples = (u32)(SR * len);
@@ -104,27 +84,26 @@ int main(int argc, char *argv[]) {
 	WRITE_STR(f, "data");
 	write_32(f, num_samples * sizeof(u16));
 
-	u32 note_idx = 0;
-	f32 cur_note_start = 0;
 	for (u32 i = 0; i < num_samples; i++) {
 		f32 t = (f32)i / SR;
 
 		f32 y = 0.0f;
-		if (note_idx < note_num) {
-			//printf("%f\n", (0.25f - (t - cur_note_start) * 0.1f));
-			y = (0.25f - (t - cur_note_start) * 0.1f) * sinf(t * note(notes[note_idx].steps_from_c0) * 2.0f * PI);
-
-			if (t > cur_note_start + notes[note_idx].duration) {
-				note_idx++;
-				cur_note_start = t;
+		for (u32 n = 0; n < note_num; n++) {
+			if (t >= notes[n].start_time && t < notes[n].start_time + notes[n].duration) {
+				f32 env = 0.25f - (t - notes[n].start_time) * 0.1f;
+				if (env < 0) env = 0;
+				y += env * sinf((t - notes[n].start_time) * note(notes[n].steps_from_c0) * 2.0f * PI);
 			}
 		}
+
+		if (y > 1.0f) y = 1.0f;
+		if (y < -1.0f) y = -1.0f;
 
 		i16 sample = (i16)(y * INT16_MAX);
 		write_16(f, sample);
 	}
 
 	fclose(f);
-	printf("Successfully finished.");
+	printf("Successfully finished.\n");
 	return 0;
 }

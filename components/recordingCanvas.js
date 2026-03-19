@@ -16,7 +16,7 @@ const bufferLength = fftSize / 2;
 let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
-export default function RecordingCanvas({ width=800, height=400 }) {
+export default function RecordingCanvas({ width = 800, height = 400 }) {
     const [tickGap, setTickGap] = useState(2);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
     const [bpm, setBPM] = useState(100);
@@ -27,32 +27,51 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     const [playLocation, setPlayLocation] = useState(-1);
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [shifting, setShifting] = useState(false); // whether time shift processing is taking place
-    
+
     const rulerWidth = 30;
     const boundingRectLeft = 482;
 
-    const [showEditor, setShowEditor] = useState(false);
+    const [editingSegment, setEditingSegment] = useState(null);
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
     // playhead
     // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
-    const { dragging, ref, pos, setPos } = useDraggable({x: 1, y: 1}, "x", {x: 0, y: 0}, ()=>{}, {x: 482, y: 0}, false)
+    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 482, y: 0 }, false);
+
+    const animationRef = useRef(null);
+    const isPlayingRef = useRef(false);
+    const playStartTimeRef = useRef(0);
+    const startPosRef = useRef(0);
+    const updatePlayheadRef = useRef();
+    const activeCtxRef = useRef(null);
+
+    updatePlayheadRef.current = () => {
+        let ctx = activeCtxRef.current;
+        if (!isPlayingRef.current || !ctx) return;
+        const elapsed = ctx.currentTime - playStartTimeRef.current;
+        const currentTimestamp = startPosRef.current + elapsed;
+
+        const currentX = getPos(currentTimestamp);
+        setPos(prev => ({ x: currentX, y: prev.y }));
+
+        animationRef.current = requestAnimationFrame(updatePlayheadRef.current);
+    };
 
     //const rulerStyle = {
     //    // make this width scale with the maximum audio segment length, or cap recording at certain length
-	//	width: "200%",
-	//	height: "50px",
+    //	width: "200%",
+    //	height: "50px",
 
-	//	backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
-		
-	//	backgroundRepeat: "repeat-x",
-	//	backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
-	//}
-    
+    //	backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
+
+    //	backgroundRepeat: "repeat-x",
+    //	backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
+    //}
+
     async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
-        let newTrack = tracksCopy[selectedTrack-1];
+        let newTrack = tracksCopy[selectedTrack - 1];
         console.log(blob);
         let data = await blob.arrayBuffer();
         const dataString = Buffer.from(data).toString("base64");
@@ -60,7 +79,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         // create file based on buffer
         const response = await fetch(`${SERVER_PATH}/upload`, {
             method: "POST",
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileName: `segment${nextID}`, buffer: dataString })
         });
 
@@ -84,7 +103,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         for (let i = 0; i < updatedTracks.length; i++) {
             let track = updatedTracks[i];
             if (track.id > selectedTrack) {
-                track.setID(track.id-1);
+                track.setID(track.id - 1);
             }
         }
         let newSelectedTrack = 1;
@@ -125,27 +144,43 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }
 
     function asAudioSegmentComponent(obj) {
-        return <AudioSegmentComponent 
-            className={styles.audioSegment} key={obj.id} ctx={audioContext} 
-            audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} 
+        return <AudioSegmentComponent
+            className={styles.audioSegment} key={obj.id} ctx={audioContext}
+            audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)}
             quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
             selected={obj == selectedSegment} processing={obj == selectedSegment && shifting}
+            openEditor={(seg) => setEditingSegment(seg)}
         />;
     }
 
-    // start playing audiosegments across all tracks which have data at the current playhead position
-    function playAt(pos) {
+    // start playing audiosegments across all tracks which lie after the playhead
+    function playAt(ts) {
+        let ctx = audioContext || new window.AudioContext();
+        activeCtxRef.current = ctx;
+
+        isPlayingRef.current = true;
+        playStartTimeRef.current = ctx.currentTime;
+        startPosRef.current = ts;
+
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
-            let segment = track.containing(pos);
-            if (segment) {
-                segment.play((audioContext || new AudioContext()), pos - segment.start);
-                setPlayLocation(getPos(pos));
+            for (let j = 0; j < track.audioSegments.length; j++) {
+                let segment = track.audioSegments[j];
+                if (segment.stop > ts) {
+                    let delay = Math.max(0, segment.start - ts);
+                    let offset = Math.max(0, ts - segment.start);
+                    segment.play(ctx, delay, offset, playStartTimeRef.current);
+                }
             }
         }
+
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+        animationRef.current = requestAnimationFrame(updatePlayheadRef.current);
     }
 
     function stopAll() {
+        isPlayingRef.current = false;
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
             for (let j = 0; j < track.audioSegments.length; j++) {
@@ -163,13 +198,13 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     }
 
     function splitAtPlayhead() {
-        let track = tracks[selectedTrack-1];
+        let track = tracks[selectedTrack - 1];
         let segment = track.containing(getTimestamp(pos.x));
         if (!segment) return;
         const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID);
 
         let tracksCopy = tracks.map((track) => track.copy());
-        let newTrack = tracksCopy[selectedTrack-1];
+        let newTrack = tracksCopy[selectedTrack - 1];
 
         newTrack.addAudioSegment(left);
         newTrack.addAudioSegment(right);
@@ -185,6 +220,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[trackNum];
         newTrack.removeAudioSegment(selectedSegment);
+        if (selectedSegment == editingSegment) {
+            setEditingSegment(null);
+        }
         console.log(newTrack);
         setTracks(tracksCopy);
     }
@@ -197,23 +235,23 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
-        
+
         setShifting(true);
         const response = await fetch(`${SERVER_PATH}/shift`, {
-           method: "POST",
-           headers: {'Content-Type': 'application/json' },
-           body: JSON.stringify({ factor: shift, type: "shift", filePath: selectedSegment.filePath })
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ factor: shift, type: "shift", filePath: selectedSegment.filePath })
         });
 
         if (response.ok) {
             // fetch looks for http://localhost:3000/url, files in public folder are accessible at /
             // filePath is in the form ./public/url
-            const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", "")); 
+            const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
             const blob = await shiftedAudio.blob();
             console.log(blob);
             let newSegment = selectedSegment.copy()
             newSegment.data = blob;
-            
+
             // replace old audiosegment with new one
             let trackNum = selectedSegment.track;
             let tracksCopy = tracks.map((track) => track.copy());
@@ -230,18 +268,40 @@ export default function RecordingCanvas({ width=800, height=400 }) {
         }
     }
 
-    async function createSegmentFromFile(fileName, duration) {
-        const newAudio = await fetch(`/audio/${fileName}`);
-        const blob = await newAudio.blob();
-        console.log(blob);
-        
-        let newAudioSegment = new AudioSegment(nextID, blob, 0, duration, selectedTrack - 1, 0, `./public/audio/${fileName}`);
+    function addEmptySegment() {
+        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, null);
         let tracksCopy = tracks.map((track) => track.copy());
-        let newTrack = tracksCopy[selectedTrack-1];
+        let newTrack = tracksCopy[selectedTrack - 1];
 
         newTrack.addAudioSegment(newAudioSegment);
         setTracks(tracksCopy);
         nextID++;
+    }
+
+    function updateSegmentData(id, blob, duration, noteData, filePath, range) {
+        let tracksCopy = tracks.map((track) => track.copy());
+        for (let track of tracksCopy) {
+            let seg = track.audioSegments.find((s) => s.id === id);
+            if (seg) {
+                if (blob) seg.data = blob;
+                seg.stop = seg.start + duration;
+                seg.noteData = noteData;
+                if (filePath) seg.filePath = filePath;
+                if (range) seg.range = range;
+                break;
+            }
+        }
+        setTracks(tracksCopy);
+    }
+
+    async function toggleRecording() {
+        if (isRecording) {
+            stopRecording();
+            stopAll();
+        } else {
+            playAt(getTimestamp(pos.x));
+            await startRecording();
+        }
     }
 
     // current issues:
@@ -253,9 +313,9 @@ export default function RecordingCanvas({ width=800, height=400 }) {
     // scroll when dragging goes over edge
 
     return (
-        <>   
+        <>
 
-            {showEditor && <SegmentEditor width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}} segmentID={nextID} addSegment={createSegmentFromFile}/>}
+            {editingSegment && <SegmentEditor key={editingSegment.id} width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} segment={editingSegment} updateSegment={updateSegmentData} closeEditor={() => setEditingSegment(null)} />}
             <form onSubmit={(e) => shiftSelected(e)}>
                 <label>
                     shift
@@ -268,14 +328,14 @@ export default function RecordingCanvas({ width=800, height=400 }) {
             <button onClick={addTrack}>+</button>
             <button onClick={removeSelectedTrack}>-</button>
             <button onClick={splitAtPlayhead}>Split</button>
-            <RecordButton isRecording={isRecording} onClick={isRecording ? stopRecording : startRecording} height={50} width={50}/>
+            <RecordButton isRecording={isRecording} onClick={toggleRecording} height={50} width={50} />
             <button onClick={() => playAt(getTimestamp(pos.x))}>{'\u23F5'}</button>
             <button onClick={stopAll}>{'\u23F8'}</button>
             <button onClick={deleteSelectedSegment}>&#x1F5D1;</button>
-            <button onClick={() => setShowEditor(!showEditor)}>{showEditor ? "Close" : "Open"} Editor</button>
+            <button onClick={addEmptySegment}>Add Empty Segment</button>
 
             {/* Controls */}
-            <div style={{width: `${width}px`}}>
+            <div style={{ width: `${width}px` }}>
                 <label>
                     tick gap
                     <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
@@ -304,7 +364,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                 </label>
 
             </div>
-            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{width: rulerWidth, gap: tickGap, sig: timeSignature}} selected={{selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack}} playhead={{ref: ref, pos: pos}} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
+            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
             {/*<div className={styles.editorContainer}>
                 <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
                     {
@@ -337,7 +397,7 @@ export default function RecordingCanvas({ width=800, height=400 }) {
                     }
                 </div>
             </div>*/}
-            <WaveformVisualizer width={500} height={300} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"}/>
-        </> 
+            <WaveformVisualizer width={500} height={300} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"} />
+        </>
     );
 }

@@ -1,19 +1,23 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ClipDisplay from "./clipDisplay";
 import ResizableComponent from "./resizable";
 
 /*
 	scale is the scale factor to transform screen coordinates to time coordinates
 */
-export function SegmentEditor({ width, height, rulerSettings, quantize, scale, segmentID, addSegment }) {
+export function SegmentEditor({ width, height, rulerSettings, quantize, scale, segment, updateSegment, closeEditor }) {
 	// index A0 as 0, default C3
-	const [range, setRange] = useState({min: 27, size: 24});
-	const [noteData, setNoteData] = useState([]);
+	const [range, setRange] = useState(segment.range || { min: 27, size: 24 });
+	const [noteData, setNoteData] = useState(segment.noteData || []);
 
 	const BAND_HEIGHT = 30;
 	const INITIAL_SEGMENT_WIDTH = 50;
 
 	const NOTES = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]
+
+	useEffect(() => {
+		updateSegment(segment.id, null, segment.stop - segment.start, noteData, null, range);
+	}, [noteData, range])
 
 	function getRangeAsArray() {
 		let arr = [];
@@ -31,7 +35,7 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	}
 
 	function addNote(initialPos) {
-		setNoteData(prev => [...prev, {id: Date.now(), x: initialPos.x, y: initialPos.y, w: INITIAL_SEGMENT_WIDTH}]);
+		setNoteData(prev => [...prev, { id: Date.now(), x: initialPos.x, y: initialPos.y, w: INITIAL_SEGMENT_WIDTH }]);
 	}
 
 	const updateNoteData = useCallback((id, pos, width) => {
@@ -40,7 +44,7 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 			console.assert(noteIndex != -1);
 
 			const newData = [...prev];
-			newData[noteIndex] = {id: id, x: pos.x, y: pos.y, w: width};
+			newData[noteIndex] = { id: id, x: pos.x, y: pos.y, w: width };
 			return newData;
 		})
 	}, []);
@@ -64,13 +68,13 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	}
 
 	function noteToComponent(note) {
-		return <ResizableComponent 
-			key={note.id} 
-			id={note.id} 
-			initialWidth={note.w} 
-			height={BAND_HEIGHT} 
-			gridX={quantize} 
-			initialPos={{x: note.x, y: note.y}}
+		return <ResizableComponent
+			key={note.id}
+			id={note.id}
+			initialWidth={note.w}
+			height={BAND_HEIGHT}
+			gridX={quantize}
+			initialPos={{ x: note.x, y: note.y }}
 			setData={updateNoteData}
 		/>
 	}
@@ -79,47 +83,71 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		noteData.sort((obj1, obj2) => obj1.x - obj2.x);
 		let notes = noteData.map(obj => yCoordToNote(obj.y));
 		console.log(notes);
+		let startTimes = noteData.map(obj => widthToDuration(obj.x));
 		let durations = noteData.map(obj => widthToDuration(obj.w));
 		let steps = notes.map(note => noteToStepsFromC0(note));
-		
-		// zips elements of steps and durations and flattens the result 1 dimension
-		let interleaved = steps.flatMap((item, idx) => [item, durations[idx]]);
+
+		// zips elements of steps, startTimes, and durations and flattens
+		let interleaved = steps.flatMap((item, idx) => [item, startTimes[idx], durations[idx]]);
 		console.log(interleaved);
 
+		let segmentID = segment.id;
 		console.log(`segment${segmentID}.wav`);
 
 		const response = await fetch("http://localhost:3000/api/synth", {
 			method: "POST",
-			headers: {'Content-Type': 'application/json' },
-           	body: JSON.stringify({ notes: interleaved, fileName: `segment${segmentID}.wav` })
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ notes: interleaved, fileName: `segment${segmentID}.wav` })
 		});
 
-		let totalDuration = durations.reduce((sum, value) => sum + value, 0);
+		let totalDuration = 0;
+		for (let i = 0; i < durations.length; i++) {
+			let end = startTimes[i] + durations[i];
+			if (end > totalDuration) totalDuration = end;
+		}
 
 		if (response.ok) {
 			console.log("Created audio from editor");
-			addSegment(`segment${segmentID}.wav`, totalDuration);
+			const blob = await response.blob();
+			const data = await blob.arrayBuffer();
+			const dataString = Buffer.from(data).toString("base64");
+
+			const uploadRes = await fetch("http://localhost:3000/api/upload", {
+				method: "POST",
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fileName: `segment${segmentID}`, buffer: dataString })
+			});
+
+			if (uploadRes.ok) {
+				updateSegment(segmentID, blob, totalDuration, noteData, `./public/audio/segment${segmentID}.wav`, range);
+				closeEditor();
+			} else {
+				console.error("Failed to upload generated segment to public folder");
+			}
+		} else {
+			console.error("Failed to generate audio via synth endpoint");
 		}
 	}
 
 	return (
 		<>
-			<br/>
+			<br />
 			<label>
 				range min
 				{/* A0 to C5 */}
-				<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({min: parseInt(e.target.value), size: range.size})}></input>
+				<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({ min: parseInt(e.target.value), size: range.size })}></input>
 				{range.min}
-            </label>
-			<br/>
+			</label>
+			<br />
 			<label>
 				range size
 				{/* 1 to 3 octaves */}
-				<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({min: range.min, size: parseInt(e.target.value)})}></input>
+				<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({ min: range.min, size: parseInt(e.target.value) })}></input>
 				{range.size}
 			</label>
-			<button onClick={createAudioFile}>Create</button>
-			<ClipDisplay components={noteData.map((note) => noteToComponent(note))} width={width} height={height} rulerSettings={rulerSettings} type={"segmentEditor"} range={getRangeAsArray()} addNote={addNote}/>
+			<button onClick={createAudioFile}>Create Audio From Notes</button>
+			<button onClick={closeEditor}>Close Editor</button>
+			<ClipDisplay components={noteData.map((note) => noteToComponent(note))} width={width} height={height} rulerSettings={rulerSettings} type={"segmentEditor"} range={getRangeAsArray()} addNote={addNote} />
 		</>
 	)
 }

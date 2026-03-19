@@ -13,21 +13,27 @@ export class AudioSegment {
 		this.track = track;
 		this.slice = slice; // position to start playback
 		this.filePath = filePath;
+		this.noteData = [];
+		this.range = { min: 27, size: 24 };
 	}
 
-	async play(ctx, offset=0) {
+	async play(ctx, delay=0, offset=0, scheduleStart=0) {
+		if (!this.data) return;
 		console.log(this.data);
 		let arrayBuffer = await this.data.arrayBuffer();
 		let buffer = await ctx.decodeAudioData(arrayBuffer);
 		const source = ctx.createBufferSource();
 		source.buffer = buffer;
 		source.connect(ctx.destination);
-		source.start(0, offset + this.slice, this.stop - this.start);
+		source.start(scheduleStart + delay, offset + this.slice, Math.max(0, this.stop - this.start - offset));
 		this.source = source;
 	}
 	
 	copy() {
-		return new AudioSegment(this.id, this.data, this.start, this.stop, this.track, this.slice, this.filePath);
+		let newSeg = new AudioSegment(this.id, this.data, this.start, this.stop, this.track, this.slice, this.filePath);
+		newSeg.noteData = [...this.noteData];
+		newSeg.range = { ...this.range };
+		return newSeg;
 	}
 
 	// split segment "cosmetically" without mutating audio data
@@ -50,7 +56,7 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected, processing }) {
+export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected, processing, openEditor }) {
 	// triggers audiosegment's visual position update when dragging takes place
 	const updateFunction = (pos) => {if (pos.x >= 0) audioSegment.setX(pos.x / size)};
 	const {dragging, ref, pos, setPos} = useDraggable({x: quantize, y: 1}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
@@ -58,7 +64,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, selec
 
 	return (
 		<>
-			<button ref={ref} onClick={() => {select(audioSegment)}} className={styles.audioSegment} style={{backgroundColor: color, position: "absolute", padding: "0px", left: audioSegment.start * size, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
+			<button ref={ref} onClick={() => {select(audioSegment)}} onDoubleClick={() => {if(openEditor) openEditor(audioSegment)}} className={styles.audioSegment} style={{backgroundColor: color, position: "absolute", padding: "0px", left: audioSegment.start * size, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
 				{processing ? "Processing..." : `${(audioSegment.stop - audioSegment.start).toFixed(1)} seconds`}
 			</button>
 		</>
