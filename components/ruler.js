@@ -5,13 +5,13 @@ export default function Ruler({ defaultWidth, tickGap, tickValue, tickUnit }) {
 	const largeTickHeight = 20;
 
 	const rulerStyle = {
-		width: "200%",
-		height: "50px",
-
-		backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0), linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
-		
+		width: "10000px",
+		height: "30px",
+		backgroundImage: "linear-gradient(to right, var(--daw-border-light) 1px, transparent 1px), linear-gradient(to right, var(--daw-text-muted) 1px, transparent 1px)",
 		backgroundRepeat: "repeat-x",
-		backgroundSize: `${small}px ${smallTickHeight}px, ${large}px ${largeTickHeight}px`
+		backgroundSize: `${small}px ${smallTickHeight}px, ${large}px ${largeTickHeight}px`,
+		backgroundPosition: "0 100%, 0 100%",
+		borderBottom: "1px solid var(--daw-border)"
 	}
 
 	return <div style={rulerStyle}></div>

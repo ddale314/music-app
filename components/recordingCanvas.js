@@ -35,9 +35,8 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
-    // playhead
     // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
-    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 482, y: 0 }, false);
+    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 140, y: 0 }, false);
 
     const animationRef = useRef(null);
     const isPlayingRef = useRef(false);
@@ -57,17 +56,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
         animationRef.current = requestAnimationFrame(updatePlayheadRef.current);
     };
-
-    //const rulerStyle = {
-    //    // make this width scale with the maximum audio segment length, or cap recording at certain length
-    //	width: "200%",
-    //	height: "50px",
-
-    //	backgroundImage: "linear-gradient(90deg, rgb(0, 0, 0) 0 1px, transparent 0)",
-
-    //	backgroundRepeat: "repeat-x",
-    //	backgroundSize: `${rulerWidth * tickGap * (timeSignature[0] / timeSignature[1])}px 100px`
-    //}
 
     async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
@@ -227,11 +215,9 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         setTracks(tracksCopy);
     }
 
-    // somehow the shifted version ends up being larger in size
     async function shiftSelected(e) {
         e.preventDefault();
         if (!selectedSegment) return;
-        // get shift multiplier from form
         const formData = new FormData(e.target);
         const formJSON = Object.fromEntries(formData.entries());
         const shift = parseFloat(formJSON["shift"]);
@@ -244,15 +230,12 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         });
 
         if (response.ok) {
-            // fetch looks for http://localhost:3000/url, files in public folder are accessible at /
-            // filePath is in the form ./public/url
             const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
             const blob = await shiftedAudio.blob();
             console.log(blob);
             let newSegment = selectedSegment.copy()
             newSegment.data = blob;
 
-            // replace old audiosegment with new one
             let trackNum = selectedSegment.track;
             let tracksCopy = tracks.map((track) => track.copy());
             let newTrack = tracksCopy[trackNum];
@@ -304,100 +287,92 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         }
     }
 
-    // current issues:
-    // idk theres some weird spot where dragging scrolls horizontally instead of doing other dragging stuff
-    // shifting takes long time on first run, maybe imports?
-    // tick gap and bpm might be broken
-
-    // implement:
-    // scroll when dragging goes over edge
-
     return (
-        <>
+        <div className={styles.dawPage}>
 
-            {editingSegment && <SegmentEditor key={editingSegment.id} width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} segment={editingSegment} updateSegment={updateSegmentData} closeEditor={() => setEditingSegment(null)} />}
-            <form onSubmit={(e) => shiftSelected(e)}>
-                <label>
-                    shift
-                    <input name="shift" type="number" min="0.5" max="2" step="0.1" defaultValue="1"></input>
-                </label>
-                <button type="submit">Apply</button>
-            </form>
+            {/* Segment Editor (opens when double-clicking a segment) */}
+            {editingSegment && (
+                <div className={styles.segmentEditorPanel}>
+                    <SegmentEditor key={editingSegment.id} width={width} height={height} quantize={rulerWidth * tickGap / quantize} scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} segment={editingSegment} updateSegment={updateSegmentData} closeEditor={() => setEditingSegment(null)} />
+                </div>
+            )}
 
-            {/* Buttons */}
-            <button onClick={addTrack}>+</button>
-            <button onClick={removeSelectedTrack}>-</button>
-            <button onClick={splitAtPlayhead}>Split</button>
-            <RecordButton isRecording={isRecording} onClick={toggleRecording} height={50} width={50} />
-            <button onClick={() => playAt(getTimestamp(pos.x))}>{'\u23F5'}</button>
-            <button onClick={stopAll}>{'\u23F8'}</button>
-            <button onClick={deleteSelectedSegment}>&#x1F5D1;</button>
-            <button onClick={addEmptySegment}>Add Empty Segment</button>
+            {/* ===== Transport Bar ===== */}
+            <div className={styles.transportBar}>
+                {/* Track management */}
+                <div className={styles.transportGroup}>
+                    <button onClick={addTrack} title="Add Track">＋</button>
+                    <button onClick={removeSelectedTrack} title="Remove Track">－</button>
+                </div>
 
-            {/* Controls */}
-            <div style={{ width: `${width}px` }}>
-                <label>
-                    tick gap
-                    <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
-                    {tickGap}
-                </label>
-                <label>
-                    bpm
+                <div className={styles.transportDivider}></div>
+
+                {/* Playback controls */}
+                <div className={styles.transportGroup}>
+                    <RecordButton isRecording={isRecording} onClick={toggleRecording} height={32} width={32} />
+                    <button className={styles.transportBtn} onClick={() => playAt(getTimestamp(pos.x))} title="Play">▶</button>
+                    <button className={styles.transportBtn} onClick={stopAll} title="Stop">⏹</button>
+                </div>
+
+                <div className={styles.transportDivider}></div>
+
+                {/* Edit tools */}
+                <div className={styles.transportGroup}>
+                    <button onClick={splitAtPlayhead} title="Split at Playhead">✂</button>
+                    <button onClick={deleteSelectedSegment} title="Delete Selected">🗑</button>
+                    <button onClick={addEmptySegment}>+ Segment</button>
+                </div>
+
+                <div className={styles.transportDivider}></div>
+
+                {/* Pitch shift */}
+                <form className={styles.shiftForm} onSubmit={(e) => shiftSelected(e)}>
+                    <label>
+                        Shift
+                        <input name="shift" type="number" min="0.5" max="2" step="0.1" defaultValue="1" style={{ width: '60px' }}></input>
+                    </label>
+                    <button type="submit">Apply</button>
+                </form>
+            </div>
+
+            {/* ===== Controls Panel ===== */}
+            <div className={styles.controlsPanel}>
+                <div className={styles.controlGroup}>
+                    <label>BPM</label>
                     <input type="range" min="20" max="200" defaultValue="100" onChange={e => setBPM(e.target.value)}></input>
-                    {bpm}
-                </label>
-                <label>
-                    time signature
+                    <span className={styles.controlValue}>{bpm}</span>
+                </div>
+                <div className={styles.controlGroup}>
+                    <label>Zoom</label>
+                    <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
+                    <span className={styles.controlValue}>{tickGap}</span>
+                </div>
+                <div className={styles.controlGroup}>
+                    <label>Time Sig</label>
                     <select defaultValue={"4,4"} onChange={e => setTimeSignature(Array.from(e.target.value.split(","), (c) => parseInt(c)))}>
                         <option value="3,4">3/4</option>
                         <option value="4,4">4/4</option>
                         <option value="6,8">6/8</option>
                     </select>
-                </label>
-                <label>
-                    quantize
+                </div>
+                <div className={styles.controlGroup}>
+                    <label>Quantize</label>
                     <select defaultValue={8} onChange={e => setQuantize(e.target.value)}>
                         <option value={16}>1/16</option>
                         <option value={8}>1/8</option>
                         <option value={4}>1/4</option>
                     </select>
-                </label>
-
+                </div>
             </div>
-            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
-            {/*<div className={styles.editorContainer}>
-                <div className={styles.trackLabel} style={{height: `${height-55}px`}}>
-                    {
-                        tracks.map((track) => 
-                            {
-                                return (
-                                    <button onClick={() => setSelectedTrack(track.id)} style={{height: "50px", border: 0, backgroundColor: (selectedTrack == track.id ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)")}}>track {track.id}</button>
-                                ); 
-                            }   
-                        )
-                    }
-                </div>
-             
-                This appears to be fixed -> Maybe there is an issue if the size of the audio segment exceeds the size of the container?
 
-                <div ref={ref} className={styles.editor} style={{width: `${width}px`, height: `${height}px`}}>
-                    <div className={styles.ruler}>
-                        <Ruler defaultWidth={rulerWidth} tickGap={tickGap} tickValue={timeSignature[0]} tickUnit={timeSignature[1]}/> 
-                        <div style={{userSelect: "none", position: "absolute", top: 0, left: `${-6.5+pos.x}px`}}>{'\u2193'}</div>
-                     </div>
-                    {
-                        tracks.map( (track) =>
-                            {
-                                return (
-                                    <TrackComponent audioSegments={track.audioSegments.map((item) => [asAudioSegmentComponent(item)])} rulerStyle={rulerStyle}/>
-                                ); 
-                                
-                            }
-                        )
-                    }
-                </div>
-            </div>*/}
-            <WaveformVisualizer width={500} height={300} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"} />
-        </>
+            {/* ===== Track Editor ===== */}
+            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
+
+            {/* ===== Waveform Monitor ===== */}
+            <div className={styles.waveformSection}>
+                <div className={styles.waveformLabel}>Input Monitor</div>
+                <WaveformVisualizer width={500} height={120} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"} />
+            </div>
+        </div>
     );
 }

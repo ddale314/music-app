@@ -72,8 +72,9 @@
 }
 
 .textGradient {
-    background: linear-gradient(135deg, #ff0000, #ff0000, #ffe600, #00ff1e, #2937ff, #b327ff, #b327ff);
+    background: linear-gradient(135deg, var(--daw-accent-blue), var(--daw-accent-green));
     background-clip: text;
+    -webkit-background-clip: text;
     color: transparent;
     display: inline-block;
 }

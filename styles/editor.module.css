@@ -1,63 +1,241 @@
 .track {
-	background-color: rgb(63, 111, 194);
+	background-color: var(--daw-bg-mid);
+	border-bottom: 1px solid var(--daw-border);
+	width: 10000px;
+}
+
+.track:nth-child(even) {
+	background-color: var(--daw-bg-dark);
 }
 
 .audioSegment {
-	border-radius: 10px;
+	border-radius: 5px;
 	overflow: hidden;
 	white-space: nowrap;
 	position: relative;
 	height: 50px;
+	font-size: 11px;
+	font-weight: 500;
+	color: rgba(0, 0, 0, 0.7);
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-
-/*.audioSegment:hover {
-	background-color: rgb(0, 136, 34);
-}*/
-
-
-/*.ruler {
-	width: 150%;
-	height: 50px;
-
-	--small-tick-width: 1px;
-	--small-tick-color: rgb(0, 0, 0);
-	--small-tick-space: 5;
-	--small-tick-height: 10px;
-
-	--large-tick-width: 1px;
-	--large-tick-color: rgb(0, 0, 0);
-	--large-tick-space: 20;
-	--large-tick-height: 20px;
-
-	--tick-unit: 2px;
-
-	background-image:
-		linear-gradient(90deg, var(--small-tick-color) 0 var(--small-tick-width), transparent 0),
-		linear-gradient(90deg, var(--large-tick-color) 0 var(--large-tick-width), transparent 0);
-	
-	background-repeat: repeat-x;
-	background-size:
-		calc(var(--tick-unit) * var(--small-tick-space)) var(--small-tick-height),
-		calc(var(--tick-unit) * var(--large-tick-space)) var(--large-tick-height);
-}*/
 
 .editor {
 	position: relative;
+	background: var(--daw-bg-darkest);
+	width: 10000px;
+	min-height: 100%;
 }
 
 .trackLabel {
-	position: relative;
-	width: 100px;
-	top: 55px;
+	position: sticky;
+	left: 0;
+	z-index: 20;
+	width: 120px;
+	min-width: 120px;
+	padding-top: 31px;
+	/* Align with ruler */
+	background: var(--daw-bg-dark);
+	border-right: 1px solid var(--daw-border);
+}
+
+.trackLabelButton {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 50px;
+	padding: 0 12px;
+	border: none;
+	border-bottom: 1px solid var(--daw-border);
+	background: var(--daw-bg-dark);
+	color: var(--daw-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	cursor: pointer;
+	transition: all var(--daw-transition);
+	text-align: left;
+	box-shadow: none;
+	border-radius: 0;
+	text-shadow: none;
+}
+
+.trackLabelButton:hover {
+	background: var(--daw-bg-light);
+	color: var(--daw-text);
+	box-shadow: none;
+	border-color: var(--daw-border);
+}
+
+.trackLabelButtonActive {
+	composes: trackLabelButton;
+	background: var(--daw-bg-light);
+	color: var(--daw-text);
+	border-left: 3px solid var(--daw-accent-green);
+	padding-left: 9px;
 }
 
 .editorContainer {
+	overflow: auto;
+	background: var(--daw-bg-darkest);
+	border: 1px solid var(--daw-border);
+	border-radius: var(--daw-radius);
+	height: 100%;
+}
+
+.editorContentWrapper {
 	display: flex;
-	overflow-y: auto;
+	min-width: min-content;
+	min-height: min-content;
 }
 
 .ruler {
 	position: sticky;
 	align-self: flex-start;
 	top: 0px;
+	background: var(--daw-bg-light);
+	border-bottom: 1px solid var(--daw-border);
+	z-index: 10;
+}
+
+/* ========== Transport Bar ========== */
+.transportBar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 10px 20px;
+	background: var(--daw-transport-bg);
+	border: 1px solid var(--daw-border);
+	border-radius: var(--daw-radius);
+	margin-bottom: 12px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.transportGroup {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.transportDivider {
+	width: 1px;
+	height: 24px;
+	background: var(--daw-border);
+	margin: 0 8px;
+}
+
+.transportBtn {
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font-size: 16px;
+	border-radius: 50%;
+	line-height: 1;
+}
+
+.recordBtn {
+	composes: transportBtn;
+	color: var(--daw-accent-red);
+}
+
+.recordBtnActive {
+	composes: transportBtn;
+	background: var(--daw-accent-red);
+	color: white;
+	border-color: #c62828;
+	box-shadow: 0 0 8px rgba(229, 57, 53, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+	animation: recordPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recordPulse {
+
+	0%,
+	100% {
+		box-shadow: 0 0 8px rgba(229, 57, 53, 0.4);
+	}
+
+	50% {
+		box-shadow: 0 0 16px rgba(229, 57, 53, 0.7);
+	}
+}
+
+/* ========== Controls Panel ========== */
+.controlsPanel {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	padding: 8px 16px;
+	background: var(--daw-bg-mid);
+	border: 1px solid var(--daw-border);
+	border-radius: var(--daw-radius);
+	margin-bottom: 12px;
+}
+
+.controlGroup {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.controlValue {
+	color: var(--daw-text);
+	font-size: 13px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	min-width: 28px;
+	text-align: center;
+}
+
+/* ========== Shift Form ========== */
+.shiftForm {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* ========== Page Container ========== */
+.dawPage {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 12px 16px;
+}
+
+/* ========== Waveform Section ========== */
+.waveformSection {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--daw-bg-mid);
+	border: 1px solid var(--daw-border);
+	border-radius: var(--daw-radius);
+}
+
+.waveformLabel {
+	color: var(--daw-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-bottom: 8px;
+}
+
+/* ========== Segment Editor Section ========== */
+.segmentEditorPanel {
+	margin-bottom: 12px;
+	padding: 12px;
+	background: var(--daw-bg-mid);
+	border: 1px solid var(--daw-border);
+	border-radius: var(--daw-radius);
+}
+
+.segmentEditorControls {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 8px;
 }

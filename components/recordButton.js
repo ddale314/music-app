@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { startRecording, stopRecording } from "../components/audioCanvas"
+import styles from '../styles/editor.module.css';
 
-export default function RecordButton( { isRecording, onClick, width, height} ) {
-	const [image, setImage] = useState("url('/images/record.jpg')");
-
-	function handleClick() {
-		if (isRecording) {
-			setImage("url('/images/record.jpg')");
-		}
-		else {
-			setImage("url('/images/stop.jpg')");
-		}
-		onClick();
-	}
+export default function RecordButton({ isRecording, onClick }) {
 	return (
-		<button onClick={handleClick} style={{width :`${width}px`, height : `${height}px`, backgroundImage: image, backgroundSize : "cover", border: 0}}></button>
+		<button 
+			onClick={onClick} 
+			className={isRecording ? styles.recordBtnActive : styles.recordBtn}
+			title={isRecording ? "Stop Recording" : "Record"}
+		>
+			<div style={{
+				width: '14px', 
+				height: '14px', 
+				backgroundColor: 'currentColor', 
+				borderRadius: isRecording ? '2px' : '50%',
+				transition: 'all var(--daw-transition)'
+			}}></div>
+		</button>
 	);
 }

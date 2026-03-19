@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect } from 'react';
-import AudioCanvas from "./audioCanvas";
 import styles from "../styles/editor.module.css";
 import useDraggable from "../hooks/useDraggable.js";
 
@@ -60,12 +59,34 @@ export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, selec
 	// triggers audiosegment's visual position update when dragging takes place
 	const updateFunction = (pos) => {if (pos.x >= 0) audioSegment.setX(pos.x / size)};
 	const {dragging, ref, pos, setPos} = useDraggable({x: quantize, y: 1}, "x", {x: audioSegment.start * size, y: 0}, updateFunction, {x: 0, y: 0}, true)
-	const color = selected ? "rgb(0, 136, 34)" :  "rgb(0, 228, 57)";
+	
+	const bgGradient = selected 
+		? "linear-gradient(180deg, var(--daw-accent-green-dark) 0%, #1a632b 100%)" 
+		: "linear-gradient(180deg, var(--daw-accent-green) 0%, var(--daw-accent-green-dark) 100%)";
+	
+	const borderColor = selected ? "#ffffff" : "var(--daw-bg-darkest)";
 
 	return (
 		<>
-			<button ref={ref} onClick={() => {select(audioSegment)}} onDoubleClick={() => {if(openEditor) openEditor(audioSegment)}} className={styles.audioSegment} style={{backgroundColor: color, position: "absolute", padding: "0px", left: audioSegment.start * size, width: `${(audioSegment.stop - audioSegment.start) * size}px`}}>
-				{processing ? "Processing..." : `${(audioSegment.stop - audioSegment.start).toFixed(1)} seconds`}
+			<button 
+				ref={ref} 
+				onClick={() => {select(audioSegment)}} 
+				onDoubleClick={() => {if(openEditor) openEditor(audioSegment)}} 
+				className={styles.audioSegment} 
+				style={{
+					background: bgGradient, 
+					position: "absolute", 
+					padding: "0 8px", 
+					left: pos.x, 
+					width: `${(audioSegment.stop - audioSegment.start) * size}px`,
+					border: `1px solid ${borderColor}`,
+					boxShadow: selected ? "0 0 8px rgba(255,255,255,0.4)" : "inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.5)",
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'flex-start'
+				}}
+			>
+				{processing ? "..." : `Seg ${audioSegment.id}`}
 			</button>
 		</>
 	)

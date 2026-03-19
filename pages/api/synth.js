@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 	console.log("notes:", notes);
 
 	if (!Array.isArray(notes) || !notes.every(n => typeof n === 'number')) {
-		return res.status(400).json({error: "Invalid notes array"});
+		return res.status(400).json({ error: "Invalid notes array" });
 	}
 
 	const execPath = path.join(process.cwd(), "utils", "sound");
@@ -34,18 +34,18 @@ export default async function handler(req, res) {
 	execFile(execPath, args, { cwd: execDir, timeout: 10000 }, async (error, stdout, stderr) => {
 		if (error) {
 			console.error("Exec error:", error);
-			return res.status(500).json({error: "Failed to create audio"});
+			return res.status(500).json({ error: "Failed to create audio" });
 		}
-		
+
 		try {
 			const audioBuffer = await fs.promises.readFile(tmpFilePath);
 			await fs.promises.unlink(tmpFilePath);
-			
+
 			res.setHeader("Content-Type", "audio/wav");
 			return res.status(200).send(audioBuffer);
 		} catch (readError) {
 			console.error("Error reading temp file:", readError);
-			return res.status(500).json({error: "Failed to read generated audio"});
+			return res.status(500).json({ error: "Failed to read generated audio" });
 		}
 	});
 }

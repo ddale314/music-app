@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import ClipDisplay from "./clipDisplay";
 import ResizableComponent from "./resizable";
+import styles from '../styles/editor.module.css';
 
 /*
 	scale is the scale factor to transform screen coordinates to time coordinates
@@ -17,6 +18,7 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 
 	useEffect(() => {
 		updateSegment(segment.id, null, segment.stop - segment.start, noteData, null, range);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [noteData, range])
 
 	function getRangeAsArray() {
@@ -35,7 +37,9 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	}
 
 	function addNote(initialPos) {
-		setNoteData(prev => [...prev, { id: Date.now(), x: initialPos.x, y: initialPos.y, w: INITIAL_SEGMENT_WIDTH }]);
+        let snappedY = Math.floor(initialPos.y / BAND_HEIGHT) * BAND_HEIGHT;
+        let snappedX = Math.floor(initialPos.x / quantize) * quantize;
+		setNoteData(prev => [...prev, { id: Date.now(), x: snappedX, y: snappedY, w: INITIAL_SEGMENT_WIDTH }]);
 	}
 
 	const updateNoteData = useCallback((id, pos, width) => {
@@ -131,22 +135,27 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 
 	return (
 		<>
-			<br />
-			<label>
-				range min
-				{/* A0 to C5 */}
-				<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({ min: parseInt(e.target.value), size: range.size })}></input>
-				{range.min}
-			</label>
-			<br />
-			<label>
-				range size
-				{/* 1 to 3 octaves */}
-				<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({ min: range.min, size: parseInt(e.target.value) })}></input>
-				{range.size}
-			</label>
-			<button onClick={createAudioFile}>Create Audio From Notes</button>
-			<button onClick={closeEditor}>Close Editor</button>
+			<div className={styles.segmentEditorControls}>
+				<label>
+					Range Min
+					<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({ min: parseInt(e.target.value), size: range.size })}></input>
+					<span style={{color: 'var(--daw-text)', fontWeight: 'bold'}}>{range.min}</span>
+				</label>
+				
+				<div className={styles.transportDivider}></div>
+
+				<label>
+					Range Size
+					<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({ min: range.min, size: parseInt(e.target.value) })}></input>
+					<span style={{color: 'var(--daw-text)', fontWeight: 'bold'}}>{range.size}</span>
+				</label>
+
+				<div style={{flex: 1}}></div>
+
+				<button onClick={createAudioFile} style={{color: 'var(--daw-accent-green)'}}>Synthesize Audio</button>
+				<button onClick={closeEditor}>Close</button>
+			</div>
+
 			<ClipDisplay components={noteData.map((note) => noteToComponent(note))} width={width} height={height} rulerSettings={rulerSettings} type={"segmentEditor"} range={getRangeAsArray()} addNote={addNote} />
 		</>
 	)

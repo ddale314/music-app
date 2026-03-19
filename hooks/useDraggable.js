@@ -8,46 +8,47 @@ import { useState, useRef, useEffect } from "react";
 */
 export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal) {
 	const [dragging, setDragging] = useState(false);
-	const [pos, setPos] = useState({x: initialPos.x, y: initialPos.y});
+	const [pos, setPos] = useState({ x: initialPos.x, y: initialPos.y });
 	// stores mouse position relative to coordinates of bounding box (?)
-	const [relPos, setRelPos] = useState({x: 0, y: 0});
+	const [relPos, setRelPos] = useState({ x: 0, y: 0 });
 	const ref = useRef();
 
-
 	useEffect(() => {
-		ref.current.addEventListener("mousedown", handleMouseDown);
-
+		if (ref.current) ref.current.addEventListener("mousedown", handleMouseDown);
 		return () => {
 			if (ref.current) ref.current.removeEventListener("mousedown", handleMouseDown);
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ref.current]);
 
 	useEffect(() => {
 		document.addEventListener("mousemove", handleMouseMove);
 		document.addEventListener("mouseup", handleMouseUp);
-
 		return () => {
 			document.removeEventListener("mousemove", handleMouseMove);
 			document.removeEventListener("mouseup", handleMouseUp);
 		};
-
-	}, [dragging]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [dragging, pos, relPos, grid]);
 
 	// recalculate position when grid parameter is modified (e.g. when quantization value is changed)
 	useEffect(() => {
 		let p = {
 			x: Math.trunc(pos.x / grid.x) * grid.x,
 			y: Math.trunc(pos.y / grid.y) * grid.y
-		}
+		};
 		updateFunction(p);
 		setPos(p);
-	}, [grid.x, grid.y])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [grid.x, grid.y]);
 
 	function handleMouseMove(e) {
 		if (!dragging) return;
 		let parentRect = ref.current.offsetParent.getBoundingClientRect();
 
 		const element = ref.current.parentElement;
+		console.log(e.pageX)
+		console.log("relPos", relPos.x)
 		let diffX = normal ? relPos.x : 0;
 		let diffY = normal ? relPos.y : 0;
 		if (ref.current.offsetParent != document.body) {
@@ -72,27 +73,28 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 	}
 
 	function handleMouseDown(e) {
+		if (!ref.current) return;
 		const box = ref.current.getBoundingClientRect();
-		const element = document.documentElement;
+		setRelPos({
+			x: e.clientX - box.left,
+			y: e.clientY - box.top
+		});
 
-		let diffX = box.left - element.clientLeft;
-		let diffY = box.top - element.clientTop;
-		if (ref.current.offsetParent == document.body) {
-			diffX += element.scrollLeft;
-			diffY += element.scrollTop;
-		}
-		let rel = {
-			x: e.pageX - diffX, 
-			y: e.pageY - diffY
-		};
-		if (fixAxis == "y") {
-			rel.x = initialPos.x;
-		}
-		if (fixAxis == "x") {
-			rel.y = initialPos.y;
-		}
-		setRelPos(rel);
 		setDragging(true);
+
+		if (!normal) {
+			// update instantly on click for playhead
+			let p = {
+				x: Math.trunc((e.clientX - box.left) / grid.x) * grid.x,
+				y: Math.trunc((e.clientY - box.top) / grid.y) * grid.y
+			};
+			if (fixAxis === "y") p.x = initialPos.x;
+			if (fixAxis === "x") p.y = initialPos.y;
+			if (p.x >= 0 && p.y >= 0) {
+				setPos(p);
+				updateFunction(p);
+			}
+		}
 		e.preventDefault();
 	}
 
@@ -103,10 +105,5 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		}
 	}
 
-	return {
-		dragging: dragging,
-		ref: ref,
-		pos: pos,
-		setPos: setPos
-	};
+	return { dragging, ref, pos, setPos };
 }
