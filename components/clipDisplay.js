@@ -87,10 +87,10 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 							<Ruler defaultWidth={rulerSettings.width} tickGap={rulerSettings.gap} tickValue={rulerSettings.sig[0]} tickUnit={rulerSettings.sig[1]} />
 						</div>
 
-						<div style={{ position: "relative" }} onContextMenu={handleRightClick}>
+						<div style={{ position: "relative", userSelect: "none" }} onContextMenu={handleRightClick} onDragStart={(e) => e.preventDefault()}>
 							{range.map((item, index) => {
 								return (
-									<div key={index} className={styles.track} style={rulerStyle("30px")}></div>
+									<div key={index} className={styles.track} style={rulerStyle("30px")} draggable={false}></div>
 								);
 							})}
 							{components.map((comp, i) => {

@@ -67,13 +67,57 @@ export default function ResizableComponent({ id, initialWidth, height, gridX, in
 
 	return (
 		<div>
-			{console.log(pos.x)}
-			{/* left handle */}
-			<span onMouseDown={handleMouseDownLeft} style={{ backgroundColor: "grey", position: "absolute", left: pos.x - 10, top: pos.y, userSelect: "none", height: height }}>{"<"}</span>
-			{/* draggable portion */}
-			<span ref={ref} style={{ position: "absolute", backgroundColor: resizing ? "green" : "red", left: pos.x, top: pos.y, width: width, height: height }}></span>
-			{/* right handle */}
-			<span onMouseDown={handleMouseDownRight} style={{ backgroundColor: "grey", position: "absolute", left: pos.x + width, top: pos.y, userSelect: "none", height: height }}>{">"}</span>
+			{/* Draggable portion (rendered underneath handles) */}
+			{/* Must exactly match pos.x to prevent useDraggable drift calculation */}
+			<div ref={ref} style={{ 
+				position: "absolute", 
+				left: pos.x, 
+				top: pos.y + 2, 
+				width: width, 
+				height: height - 4,
+				borderRadius: "4px",
+				background: resizing 
+					? "linear-gradient(180deg, var(--daw-accent-green-light, #4cd964) 0%, var(--daw-accent-green, #34c759) 100%)" 
+					: "linear-gradient(180deg, var(--daw-accent-green, #34c759) 0%, var(--daw-accent-green-dark, #248a3d) 100%)",
+				boxShadow: resizing ? "0 0 8px rgba(52, 199, 89, 0.6)" : "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+				border: "1px solid var(--daw-border, #1a632b)",
+				cursor: "grab",
+				zIndex: 1,
+				userSelect: "none",
+				boxSizing: "border-box"
+			}} />
+
+			{/* Left handle sitting on top! */}
+			<div onMouseDown={handleMouseDownLeft} style={{ 
+				position: "absolute", 
+				left: pos.x, 
+				top: pos.y + 2, 
+				width: "6px", 
+				height: height - 4, 
+				cursor: "ew-resize", 
+				zIndex: 2,
+				backgroundColor: "rgba(255,255,255,0.15)",
+				borderRight: "1px solid rgba(0,0,0,0.2)",
+				borderTopLeftRadius: "4px",
+				borderBottomLeftRadius: "4px",
+				boxSizing: "border-box"
+			}} />
+
+			{/* Right handle sitting on top! */}
+			<div onMouseDown={handleMouseDownRight} style={{ 
+				position: "absolute", 
+				left: pos.x + width - 6, 
+				top: pos.y + 2, 
+				width: "6px", 
+				height: height - 4, 
+				cursor: "ew-resize", 
+				zIndex: 2,
+				backgroundColor: "rgba(255,255,255,0.15)",
+				borderLeft: "1px solid rgba(0,0,0,0.2)",
+				borderTopRightRadius: "4px",
+				borderBottomRightRadius: "4px",
+				boxSizing: "border-box"
+			}} />
 		</div>
 	);
 }

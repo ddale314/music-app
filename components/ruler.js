@@ -11,8 +11,9 @@ export default function Ruler({ defaultWidth, tickGap, tickValue, tickUnit }) {
 		backgroundRepeat: "repeat-x",
 		backgroundSize: `${small}px ${smallTickHeight}px, ${large}px ${largeTickHeight}px`,
 		backgroundPosition: "0 100%, 0 100%",
-		borderBottom: "1px solid var(--daw-border)"
+		borderBottom: "1px solid var(--daw-border)",
+		userSelect: "none"
 	}
 
-	return <div style={rulerStyle}></div>
+	return <div style={rulerStyle} onDragStart={(e) => e.preventDefault()} draggable={false}></div>
 }
