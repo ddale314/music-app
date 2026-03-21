@@ -76,7 +76,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             console.log(result.path);
 
             // create audiosegment based on blob (arraybuffer can only be "used" once)
-            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
+            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, rulerWidth * tickGap / timeSignature[1] * (bpm / 60), result.path);
             newTrack.addAudioSegment(newAudioSegment);
             setTracks(tracksCopy);
             nextID++;
@@ -134,8 +134,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     function asAudioSegmentComponent(obj) {
         return <AudioSegmentComponent
             className={styles.audioSegment} key={obj.id} ctx={audioContext}
-            audioSegment={obj} size={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)}
-            quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
+            audioSegment={obj} quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
             selected={obj == selectedSegment} processing={obj == selectedSegment && shifting}
             openEditor={(seg) => setEditingSegment(seg)}
         />;
@@ -252,7 +251,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     }
 
     function addEmptySegment() {
-        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, null);
+        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, rulerWidth * tickGap / timeSignature[1] * (bpm / 60), null);
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
 

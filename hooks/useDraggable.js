@@ -47,8 +47,6 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		let parentRect = ref.current.offsetParent.getBoundingClientRect();
 
 		const element = ref.current.parentElement;
-		console.log(e.pageX)
-		console.log("relPos", relPos.x)
 		let diffX = normal ? relPos.x : 0;
 		let diffY = normal ? relPos.y : 0;
 		if (ref.current.offsetParent != document.body) {

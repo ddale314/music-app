@@ -4,7 +4,7 @@ import useDraggable from "../hooks/useDraggable.js";
 
 export class AudioSegment {
 
-	constructor(id, data, start, stop, track, slice, filePath, noteData = [], range = { min: 27, size: 24 }) {
+	constructor(id, data, start, stop, track, slice, scale, filePath, noteData = [], range = { min: 27, size: 24 }) {
 		this.id = id;
 		this.data = data; // blob object
 		this.start = start;
@@ -12,8 +12,10 @@ export class AudioSegment {
 		this.track = track;
 		this.slice = slice; // position to start playback
 		this.filePath = filePath;
+		console.log(noteData);
 		this.noteData = noteData;
 		this.range = range;
+		this.scale = scale;
 	}
 
 	async play(ctx, delay = 0, offset = 0, scheduleStart = 0) {
@@ -38,8 +40,24 @@ export class AudioSegment {
 	// split segment "cosmetically" without mutating audio data
 	// TODO: noteData should be initialized for left and right segments
 	split(pos, nextID) {
-		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, 0, this.filePath);
-		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, pos, this.filePath);
+		console.log("start/split: ", this.start, pos);
+		let splitPixel = pos * this.scale;
+		let leftData = [];
+		let rightData = [];
+		for (let note of this.noteData) {
+			console.log("note: ", note.id, note.x, note.w);
+			if (note.x + note.w <= splitPixel) {
+				leftData.push(note);
+			} else if (note.x >= splitPixel) {
+				rightData.push({ ...note, x: note.x - splitPixel });
+			} else {
+				leftData.push({ ...note, w: splitPixel - note.x });
+				rightData.push({ ...note, x: 0, w: note.x + note.w - splitPixel });
+			}
+		}
+		console.log(leftData, rightData);
+		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, 0, this.scale, this.filePath, leftData);
+		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, pos, this.scale, this.filePath, rightData);
 		return [left, right];
 	}
 
@@ -56,12 +74,12 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, select, selected, processing, openEditor }) {
+export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, selected, processing, openEditor }) {
 	const [waveformData, setWaveformData] = useState(null);
 
 	// triggers audiosegment's visual position update when dragging takes place
-	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setX(pos.x / size) };
-	const { dragging, ref, pos, setPos } = useDraggable({ x: quantize, y: 1 }, "x", { x: audioSegment.start * size, y: 0 }, updateFunction, { x: 0, y: 0 }, true)
+	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setX(pos.x / audioSegment.scale) };
+	const { dragging, ref, pos, setPos } = useDraggable({ x: quantize, y: 1 }, "x", { x: audioSegment.start * audioSegment.scale, y: 0 }, updateFunction, { x: 0, y: 0 }, true)
 
 	const bgGradient = selected
 		? "linear-gradient(180deg, var(--daw-accent-green-dark) 0%, #1a632b 100%)"
@@ -109,7 +127,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, selec
 					position: "absolute",
 					padding: 0,
 					left: pos.x,
-					width: `${(audioSegment.stop - audioSegment.start) * size}px`,
+					width: `${(audioSegment.stop - audioSegment.start) * audioSegment.scale}px`,
 					border: `1px solid ${borderColor}`,
 					boxShadow: selected ? "0 0 8px rgba(255,255,255,0.4)" : "inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.5)",
 					display: 'flex',
@@ -162,7 +180,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, size, quantize, selec
 				</div>
 
 				<span style={{ position: 'relative', zIndex: 1, paddingLeft: '8px', color: '#fff', fontSize: '12px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-					{processing ? "..." : `Seg ${audioSegment.id}`}
+					{processing ? "..." : ""}
 				</span>
 			</button>
 		</>
