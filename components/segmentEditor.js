@@ -18,13 +18,13 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 
 	useEffect(() => {
 		updateSegment(segment.id, null, segment.stop - segment.start, noteData, null, range);
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [noteData, range])
 
 	function getRangeAsArray() {
 		let arr = [];
 		console.assert(typeof range.min == "number" && typeof range.size == "number");
-		for (let i = range.min; i <= range.min + range.size; i++) {
+		for (let i = range.min + range.size; i >= range.min; i--) {
 			arr.push(indexToNote(i));
 		}
 		return arr;
@@ -37,8 +37,8 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	}
 
 	function addNote(initialPos) {
-        let snappedY = Math.floor(initialPos.y / BAND_HEIGHT) * BAND_HEIGHT;
-        let snappedX = Math.floor(initialPos.x / quantize) * quantize;
+		let snappedY = Math.floor(initialPos.y / BAND_HEIGHT) * BAND_HEIGHT;
+		let snappedX = Math.floor(initialPos.x / quantize) * quantize;
 		setNoteData(prev => [...prev, { id: Date.now(), x: snappedX, y: snappedY, w: INITIAL_SEGMENT_WIDTH }]);
 	}
 
@@ -139,20 +139,20 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 				<label>
 					Range Min
 					<input type="range" min="0" max="51" defaultValue="27" onChange={e => setRange({ min: parseInt(e.target.value), size: range.size })}></input>
-					<span style={{color: 'var(--daw-text)', fontWeight: 'bold'}}>{range.min}</span>
+					<span style={{ color: 'var(--daw-text)', fontWeight: 'bold' }}>{range.min}</span>
 				</label>
-				
+
 				<div className={styles.transportDivider}></div>
 
 				<label>
 					Range Size
 					<input type="range" min="12" max="36" defaultValue="24" onChange={e => setRange({ min: range.min, size: parseInt(e.target.value) })}></input>
-					<span style={{color: 'var(--daw-text)', fontWeight: 'bold'}}>{range.size}</span>
+					<span style={{ color: 'var(--daw-text)', fontWeight: 'bold' }}>{range.size}</span>
 				</label>
 
-				<div style={{flex: 1}}></div>
+				<div style={{ flex: 1 }}></div>
 
-				<button onClick={createAudioFile} style={{color: 'var(--daw-accent-green)'}}>Synthesize Audio</button>
+				<button onClick={createAudioFile} style={{ color: 'var(--daw-accent-green)' }}>Synthesize Audio</button>
 				<button onClick={closeEditor}>Close</button>
 			</div>
 

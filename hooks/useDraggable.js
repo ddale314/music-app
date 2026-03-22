@@ -31,24 +31,15 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [dragging, pos, relPos, grid]);
 
-	// recalculate position when grid parameter is modified (e.g. when quantization value is changed)
-	useEffect(() => {
-		let p = {
-			x: Math.trunc(pos.x / grid.x) * grid.x,
-			y: Math.trunc(pos.y / grid.y) * grid.y
-		};
-		updateFunction(p);
-		setPos(p);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [grid.x, grid.y]);
-
 	function handleMouseMove(e) {
 		if (!dragging) return;
 		let parentRect = ref.current.offsetParent.getBoundingClientRect();
 
 		const element = ref.current.parentElement;
-		let diffX = normal ? relPos.x : 0;
-		let diffY = normal ? relPos.y : 0;
+		let diffX = normal ? relPos.x : ref.current.getBoundingClientRect().left;
+		let diffY = normal ? relPos.y : ref.current.getBoundingClientRect().top;
+
+		console.log(ref.current.getBoundingClientRect().left);
 		if (ref.current.offsetParent != document.body) {
 			diffX += parentRect.left;
 			diffY += parentRect.top;

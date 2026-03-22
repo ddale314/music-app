@@ -47,15 +47,42 @@ export default function ResizableComponent({ id, initialWidth, height, gridX, in
 		// compute new width, pos as difference from original state
 		// computing based on current state (e.g. e.pageX - pos.x) caused some issues
 		const deltaX = e.pageX - dragStart.current.x;
-		setWidth(dragStart.current.w - deltaX);
-		const newLeft = dragStart.current.l + deltaX;
-		setPos({ x: newLeft, y: pos.y });
+		let newLeft = dragStart.current.l + deltaX;
+
+		const SNAP_THRESHOLD = 10;
+		if (gridX) {
+			let nearestSnapL = Math.round(newLeft / gridX) * gridX;
+			if (Math.abs(newLeft - nearestSnapL) < SNAP_THRESHOLD) {
+				newLeft = nearestSnapL;
+			}
+		}
+
+		const rightEdge = dragStart.current.l + dragStart.current.w;
+		const newWidth = Math.max(10, rightEdge - newLeft);
+
+		if (rightEdge - newLeft >= 10) {
+			setWidth(newWidth);
+			setPos({ x: newLeft, y: pos.y });
+		}
 	}
 
 	// right resize is just a width increase
 	function handleMouseMoveRight(e) {
 		const deltaX = e.pageX - dragStart.current.x;
-		setWidth(dragStart.current.w + deltaX);
+		let newWidth = dragStart.current.w + deltaX;
+
+		const SNAP_THRESHOLD = 10;
+		if (gridX) {
+			let intendedRight = dragStart.current.l + newWidth;
+			let nearestSnapR = Math.round(intendedRight / gridX) * gridX;
+			if (Math.abs(intendedRight - nearestSnapR) < SNAP_THRESHOLD) {
+				newWidth = nearestSnapR - dragStart.current.l;
+			}
+		}
+
+		if (newWidth >= 10) {
+			setWidth(newWidth);
+		}
 	}
 
 	function handleMouseUp(e) {

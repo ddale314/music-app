@@ -36,7 +36,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
     // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
-    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 140, y: 0 }, false);
+    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 0, y: 0 }, false);
 
     const animationRef = useRef(null);
     const isPlayingRef = useRef(false);
@@ -76,7 +76,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             console.log(result.path);
 
             // create audiosegment based on blob (arraybuffer can only be "used" once)
-            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, rulerWidth * tickGap / timeSignature[1] * (bpm / 60), result.path);
+            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
             newTrack.addAudioSegment(newAudioSegment);
             setTracks(tracksCopy);
             nextID++;
@@ -137,6 +137,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             audioSegment={obj} quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
             selected={obj == selectedSegment} processing={obj == selectedSegment && shifting}
             openEditor={(seg) => setEditingSegment(seg)}
+            scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)}
         />;
     }
 
@@ -188,7 +189,8 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         let track = tracks[selectedTrack - 1];
         let segment = track.containing(getTimestamp(pos.x));
         if (!segment) return;
-        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID);
+        const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
+        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID, currentScale);
 
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
@@ -251,7 +253,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     }
 
     function addEmptySegment() {
-        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, rulerWidth * tickGap / timeSignature[1] * (bpm / 60), null);
+        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, null);
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
 
@@ -309,7 +311,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 {/* Playback controls */}
                 <div className={styles.transportGroup}>
                     <RecordButton isRecording={isRecording} onClick={toggleRecording} height={32} width={32} />
-                    <button className={styles.transportBtn} onClick={() => playAt(getTimestamp(pos.x))} title="Play">▶</button>
+                    <button className={styles.transportBtn} onClick={() => { if (isPlayingRef.current) stopAll(); else playAt(getTimestamp(pos.x)); }} title="Play">▶</button>
                     <button className={styles.transportBtn} onClick={stopAll} title="Stop">⏹</button>
                 </div>
 
@@ -360,6 +362,8 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                         <option value={16}>1/16</option>
                         <option value={8}>1/8</option>
                         <option value={4}>1/4</option>
+                        <option value={2}>1/2</option>
+                        <option value={1}>1/1</option>
                     </select>
                 </div>
             </div>

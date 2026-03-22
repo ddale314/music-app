@@ -4,7 +4,7 @@ import useDraggable from "../hooks/useDraggable.js";
 
 export class AudioSegment {
 
-	constructor(id, data, start, stop, track, slice, scale, filePath, noteData = [], range = { min: 27, size: 24 }) {
+	constructor(id, data, start, stop, track, slice, filePath, noteData = [], range = { min: 27, size: 24 }) {
 		this.id = id;
 		this.data = data; // blob object
 		this.start = start;
@@ -12,15 +12,13 @@ export class AudioSegment {
 		this.track = track;
 		this.slice = slice; // position to start playback
 		this.filePath = filePath;
-		console.log(noteData);
 		this.noteData = noteData;
 		this.range = range;
-		this.scale = scale;
 	}
 
 	async play(ctx, delay = 0, offset = 0, scheduleStart = 0) {
 		if (!this.data) return;
-		console.log(this.data);
+
 		let arrayBuffer = await this.data.arrayBuffer();
 		let buffer = await ctx.decodeAudioData(arrayBuffer);
 		const source = ctx.createBufferSource();
@@ -38,14 +36,11 @@ export class AudioSegment {
 	}
 
 	// split segment "cosmetically" without mutating audio data
-	// TODO: noteData should be initialized for left and right segments
-	split(pos, nextID) {
-		console.log("start/split: ", this.start, pos);
-		let splitPixel = pos * this.scale;
+	split(pos, nextID, scale) {
+		let splitPixel = pos * scale;
 		let leftData = [];
 		let rightData = [];
 		for (let note of this.noteData) {
-			console.log("note: ", note.id, note.x, note.w);
 			if (note.x + note.w <= splitPixel) {
 				leftData.push(note);
 			} else if (note.x >= splitPixel) {
@@ -55,9 +50,9 @@ export class AudioSegment {
 				rightData.push({ ...note, x: 0, w: note.x + note.w - splitPixel });
 			}
 		}
-		console.log(leftData, rightData);
-		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, 0, this.scale, this.filePath, leftData);
-		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, pos, this.scale, this.filePath, rightData);
+
+		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, this.slice, this.filePath, leftData);
+		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, this.slice + pos, this.filePath, rightData);
 		return [left, right];
 	}
 
@@ -74,12 +69,18 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, selected, processing, openEditor }) {
+export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, selected, processing, openEditor, scale }) {
 	const [waveformData, setWaveformData] = useState(null);
 
 	// triggers audiosegment's visual position update when dragging takes place
-	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setX(pos.x / audioSegment.scale) };
-	const { dragging, ref, pos, setPos } = useDraggable({ x: quantize, y: 1 }, "x", { x: audioSegment.start * audioSegment.scale, y: 0 }, updateFunction, { x: 0, y: 0 }, true)
+	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setX(pos.x / scale) };
+	const { dragging, ref, pos, setPos } = useDraggable({ x: quantize, y: 1 }, "x", { x: audioSegment.start * scale, y: 0 }, updateFunction, { x: 0, y: 0 }, true)
+
+	useEffect(() => {
+		if (!dragging) {
+			setPos({ x: audioSegment.start * scale, y: 0 });
+		}
+	}, [scale, audioSegment.start, dragging, setPos]);
 
 	const bgGradient = selected
 		? "linear-gradient(180deg, var(--daw-accent-green-dark) 0%, #1a632b 100%)"
@@ -94,7 +95,8 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, sel
 				return ctx.decodeAudioData(buffer);
 			}).then(audioBuffer => {
 				if (!active) return;
-				const channelData = audioBuffer.getChannelData(0);
+				console.log(audioSegment.start, audioSegment.slice, audioSegment.stop);
+				const channelData = audioBuffer.getChannelData(0).slice(audioSegment.slice * ctx.sampleRate, (audioSegment.slice + audioSegment.stop - audioSegment.start) * ctx.sampleRate + 1);
 
 				const step = Math.ceil(channelData.length / 200);
 				const downsampled = [];
@@ -127,7 +129,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, sel
 					position: "absolute",
 					padding: 0,
 					left: pos.x,
-					width: `${(audioSegment.stop - audioSegment.start) * audioSegment.scale}px`,
+					width: `${(audioSegment.stop - audioSegment.start) * scale}px`,
 					border: `1px solid ${borderColor}`,
 					boxShadow: selected ? "0 0 8px rgba(255,255,255,0.4)" : "inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.5)",
 					display: 'flex',
