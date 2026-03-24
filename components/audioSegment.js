@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import styles from "../styles/editor.module.css";
 import useDraggable from "../hooks/useDraggable.js";
+import * as Tone from 'tone';
+import { BAND_HEIGHT, getRangeAsArray } from '../utils/notes';
 
 export class AudioSegment {
 
@@ -16,16 +18,40 @@ export class AudioSegment {
 		this.range = range;
 	}
 
-	async play(ctx, delay = 0, offset = 0, scheduleStart = 0) {
-		if (!this.data) return;
+	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100) {
+		if (this.noteData && this.noteData.length > 0) {
+			if (!this.synth) {
+				this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+			}
+			const now = scheduleStart + delay;
+			const rangeArray = getRangeAsArray(this.range);
 
-		let arrayBuffer = await this.data.arrayBuffer();
-		let buffer = await ctx.decodeAudioData(arrayBuffer);
-		const source = ctx.createBufferSource();
-		source.buffer = buffer;
-		source.connect(ctx.destination);
-		source.start(scheduleStart + delay, offset + this.slice, Math.max(0, this.stop - this.start - offset));
-		this.source = source;
+			console.log("playing");
+			this.noteData.forEach(note => {
+				const noteName = rangeArray[Math.floor(note.y / BAND_HEIGHT)];
+				const noteStart = note.x / scale;
+				const noteDuration = note.w / scale;
+
+				if (noteStart + noteDuration > offset) {
+					let playStart = now + Math.max(0, noteStart - offset);
+					let playDuration = noteDuration;
+
+					if (noteStart < offset) {
+						playDuration = noteDuration - (offset - noteStart);
+					}
+
+					this.synth.triggerAttackRelease(noteName, playDuration, playStart);
+				}
+			});
+		} else if (this.data) {
+			let arrayBuffer = await this.data.arrayBuffer();
+			let buffer = await ctx.decodeAudioData(arrayBuffer);
+			const source = ctx.createBufferSource();
+			source.buffer = buffer;
+			source.connect(ctx.destination);
+			source.start(scheduleStart + delay, offset + this.slice, Math.max(0, this.stop - this.start - offset));
+			this.source = source;
+		}
 	}
 
 	copy() {
@@ -65,6 +91,9 @@ export class AudioSegment {
 	stopAudio() {
 		if (this.source) {
 			this.source.stop();
+		}
+		if (this.synth) {
+			this.synth.releaseAll();
 		}
 	}
 }

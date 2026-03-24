@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
+import * as Tone from 'tone';
 
 const fftSize = 8192;
 
@@ -31,7 +32,10 @@ export default function useRecorder(onRecordingComplete=null) {
 			const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: false} });
 			mediaStreamRef.current = mediaStream;
 
-			const audioContext = new AudioContext();
+			if (Tone.context.state !== "running") {
+				await Tone.start();
+			}
+			const audioContext = Tone.context.rawContext;
 			audioContextRef.current = audioContext;
 
 			const source = audioContext.createMediaStreamSource(mediaStream);

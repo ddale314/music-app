@@ -10,6 +10,7 @@ import ResizableComponent from "./resizable";
 import ClipDisplay from "./clipDisplay";
 import { SegmentEditor } from "./segmentEditor";
 import WaveformVisualizer from './waveform';
+import * as Tone from 'tone';
 
 const fftSize = 8192;
 const bufferLength = fftSize / 2;
@@ -24,6 +25,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
     const [selectedTrack, setSelectedTrack] = useState(1);
     const [tracks, setTracks] = useState([new Track(1)]);
+    const [newTrackType, setNewTrackType] = useState('audio');
     const [playLocation, setPlayLocation] = useState(-1);
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [shifting, setShifting] = useState(false); // whether time shift processing is taking place
@@ -109,7 +111,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
     function addTrack() {
         let nextTrackID = (tracks.length == 0 ? 1 : tracks.at(-1).id + 1);
-        setTracks(tracks.concat(new Track(nextTrackID)));
+        setTracks(tracks.concat(new Track(nextTrackID, [], newTrackType)));
         setSelectedTrack(nextTrackID);
     }
 
@@ -142,13 +144,18 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     }
 
     // start playing audiosegments across all tracks which lie after the playhead
-    function playAt(ts) {
-        let ctx = audioContext || new window.AudioContext();
+    async function playAt(ts) {
+        if (Tone.context.state !== "running") {
+            await Tone.start();
+        }
+        let ctx = Tone.context.rawContext;
         activeCtxRef.current = ctx;
 
         isPlayingRef.current = true;
         playStartTimeRef.current = ctx.currentTime;
         startPosRef.current = ts;
+
+        const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
@@ -157,7 +164,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 if (segment.stop > ts) {
                     let delay = Math.max(0, segment.start - ts);
                     let offset = Math.max(0, ts - segment.start);
-                    segment.play(ctx, delay, offset, playStartTimeRef.current);
+                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale);
                 }
             }
         }
@@ -283,10 +290,43 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             stopRecording();
             stopAll();
         } else {
-            playAt(getTimestamp(pos.x));
+            await playAt(getTimestamp(pos.x));
             await startRecording();
         }
     }
+
+    function handleBPMChange(e) {
+        let newBPM = parseInt(e.target.value);
+        if (newBPM === bpm) return;
+
+        let ratio = bpm / newBPM;
+
+        let tracksCopy = tracks.map(track => {
+            let tCopy = track.copy();
+            tCopy.audioSegments = tCopy.audioSegments.map(seg => {
+                let segCopy = seg.copy();
+                let oldStart = segCopy.start;
+                segCopy.start = oldStart * ratio;
+
+                if (!segCopy.data) {
+                    let oldDuration = segCopy.stop - oldStart;
+                    segCopy.stop = segCopy.start + (oldDuration * ratio);
+                } else {
+                    let oldDuration = segCopy.stop - oldStart;
+                    segCopy.stop = segCopy.start + oldDuration;
+                }
+                return segCopy;
+            });
+            return tCopy;
+        });
+
+        setTracks(tracksCopy);
+        setBPM(newBPM);
+    }
+
+    const currentTrack = tracks.find(t => t.id === selectedTrack);
+    const isAudioTrack = currentTrack ? currentTrack.type === 'audio' : true;
+    const isMidiTrack = currentTrack ? currentTrack.type === 'midi' : false;
 
     return (
         <div className={styles.dawPage}>
@@ -302,6 +342,10 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             <div className={styles.transportBar}>
                 {/* Track management */}
                 <div className={styles.transportGroup}>
+                    <select value={newTrackType} onChange={e => setNewTrackType(e.target.value)} title="Track Type" style={{ backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '4px', padding: '4px' }}>
+                        <option value="audio">Audio</option>
+                        <option value="midi">MIDI</option>
+                    </select>
                     <button onClick={addTrack} title="Add Track">＋</button>
                     <button onClick={removeSelectedTrack} title="Remove Track">－</button>
                 </div>
@@ -310,7 +354,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
                 {/* Playback controls */}
                 <div className={styles.transportGroup}>
-                    <RecordButton isRecording={isRecording} onClick={toggleRecording} height={32} width={32} />
+                    <RecordButton isRecording={isRecording} onClick={toggleRecording} height={32} width={32} disabled={!isAudioTrack} />
                     <button className={styles.transportBtn} onClick={() => { if (isPlayingRef.current) stopAll(); else playAt(getTimestamp(pos.x)); }} title="Play">▶</button>
                     <button className={styles.transportBtn} onClick={stopAll} title="Stop">⏹</button>
                 </div>
@@ -321,7 +365,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 <div className={styles.transportGroup}>
                     <button onClick={splitAtPlayhead} title="Split at Playhead">✂</button>
                     <button onClick={deleteSelectedSegment} title="Delete Selected">🗑</button>
-                    <button onClick={addEmptySegment}>+ Segment</button>
+                    <button onClick={addEmptySegment} disabled={!isMidiTrack} style={{ opacity: isMidiTrack ? 1 : 0.5, cursor: isMidiTrack ? 'pointer' : 'not-allowed' }}>+ Segment</button>
                 </div>
 
                 <div className={styles.transportDivider}></div>
@@ -340,7 +384,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             <div className={styles.controlsPanel}>
                 <div className={styles.controlGroup}>
                     <label>BPM</label>
-                    <input type="range" min="20" max="200" defaultValue="100" onChange={e => setBPM(e.target.value)}></input>
+                    <input type="range" min="20" max="200" value={bpm} onChange={e => handleBPMChange(e)}></input>
                     <span className={styles.controlValue}>{bpm}</span>
                 </div>
                 <div className={styles.controlGroup}>
