@@ -18,15 +18,15 @@ export class AudioSegment {
 		this.range = range;
 	}
 
-	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100) {
+	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100, sampler = null) {
+		this.sampler = sampler;
+		this.noteTimeouts = this.noteTimeouts || [];
 		if (this.noteData && this.noteData.length > 0) {
-			if (!this.synth) {
+			if (!sampler && !this.synth) {
 				this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
 			}
 			const now = scheduleStart + delay;
 			const rangeArray = getRangeAsArray(this.range);
-
-			console.log("playing");
 			this.noteData.forEach(note => {
 				const noteName = rangeArray[Math.floor(note.y / BAND_HEIGHT)];
 				const noteStart = note.x / scale;
@@ -40,7 +40,16 @@ export class AudioSegment {
 						playDuration = noteDuration - (offset - noteStart);
 					}
 
-					this.synth.triggerAttackRelease(noteName, playDuration, playStart);
+					let delayInSeconds = Math.max(0, playStart - Tone.context.currentTime);
+
+					let timeoutId = Tone.context.setTimeout(() => {
+						if (this.sampler) {
+							this.sampler.triggerAttackRelease(noteName, playDuration, Tone.context.currentTime);
+						} else {
+							this.synth.triggerAttackRelease(noteName, playDuration, Tone.context.currentTime);
+						}
+					}, delayInSeconds);
+					this.noteTimeouts.push(timeoutId);
 				}
 			});
 		} else if (this.data) {
@@ -90,10 +99,22 @@ export class AudioSegment {
 
 	stopAudio() {
 		if (this.source) {
-			this.source.stop();
+			try {
+				this.source.stop();
+				this.source = null;
+			} catch (e) {
+				// Ignore if the source was already stopped or not started
+			}
 		}
 		if (this.synth) {
 			this.synth.releaseAll();
+		}
+		if (this.noteTimeouts) {
+			this.noteTimeouts.forEach(id => Tone.context.clearTimeout(id));
+			this.noteTimeouts = [];
+		}
+		if (this.sampler) {
+			this.sampler.releaseAll();
 		}
 	}
 }

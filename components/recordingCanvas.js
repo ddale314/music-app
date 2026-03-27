@@ -11,6 +11,7 @@ import ClipDisplay from "./clipDisplay";
 import { SegmentEditor } from "./segmentEditor";
 import WaveformVisualizer from './waveform';
 import * as Tone from 'tone';
+import { INSTRUMENT_SAMPLES, getBaseUrl } from '../utils/instruments';
 
 const fftSize = 8192;
 const bufferLength = fftSize / 2;
@@ -38,7 +39,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
     // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
-    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 0, y: 0 }, false);
+    const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 0, y: 0 }, false, { top: 0, bottom: 40 });
 
     const animationRef = useRef(null);
     const isPlayingRef = useRef(false);
@@ -46,6 +47,36 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const startPosRef = useRef(0);
     const updatePlayheadRef = useRef();
     const activeCtxRef = useRef(null);
+    const trackSamplersRef = useRef({});
+
+    const loadSampler = useCallback((trackId, instrument) => {
+        if (instrument === 'synth') {
+            trackSamplersRef.current[trackId] = null;
+            return;
+        }
+        if (!INSTRUMENT_SAMPLES[instrument]) return;
+
+        console.log(`Loading sampler for ${instrument}...`);
+        const sampler = new Tone.Sampler({
+            urls: INSTRUMENT_SAMPLES[instrument],
+            baseUrl: getBaseUrl(instrument),
+            onload: () => {
+                console.log(`${instrument} loaded for track ${trackId}`);
+                trackSamplersRef.current[trackId] = sampler;
+            }
+        }).toDestination();
+    }, []);
+
+    const changeTrackInstrument = useCallback((trackId, newInstrument) => {
+        setTracks(prevTracks => prevTracks.map(t => {
+            if (t.id === trackId) {
+                let tCopy = t.copy();
+                tCopy.instrument = newInstrument;
+                return tCopy;
+            }
+            return t;
+        }));
+    }, []);
 
     updatePlayheadRef.current = () => {
         let ctx = activeCtxRef.current;
@@ -62,7 +93,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     async function handleRecordingComplete(blob, duration) {
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
-        console.log(blob);
+
         let data = await blob.arrayBuffer();
         const dataString = Buffer.from(data).toString("base64");
 
@@ -75,7 +106,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
         if (response.ok) {
             const result = await response.json();
-            console.log(result.path);
 
             // create audiosegment based on blob (arraybuffer can only be "used" once)
             let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
@@ -159,12 +189,13 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
+            let sampler = trackSamplersRef.current[track.id] || null;
             for (let j = 0; j < track.audioSegments.length; j++) {
                 let segment = track.audioSegments[j];
                 if (segment.stop > ts) {
                     let delay = Math.max(0, segment.start - ts);
                     let offset = Math.max(0, ts - segment.start);
-                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale);
+                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale, sampler);
                 }
             }
         }
@@ -219,7 +250,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         if (selectedSegment == editingSegment) {
             setEditingSegment(null);
         }
-        console.log(newTrack);
         setTracks(tracksCopy);
     }
 
@@ -240,7 +270,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         if (response.ok) {
             const shiftedAudio = await fetch(selectedSegment.filePath.replace("./public", ""));
             const blob = await shiftedAudio.blob();
-            console.log(blob);
             let newSegment = selectedSegment.copy()
             newSegment.data = blob;
 
@@ -415,10 +444,39 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             {/* ===== Track Editor ===== */}
             <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
 
-            {/* ===== Waveform Monitor ===== */}
-            <div className={styles.waveformSection}>
-                <div className={styles.waveformLabel}>Input Monitor</div>
-                <WaveformVisualizer width={500} height={120} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"} />
+            {/* ===== Waveform Monitor & Instrument Selector ===== */}
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', padding: '10px' }}>
+                <div className={styles.waveformSection} style={{ flex: 1, margin: 0 }}>
+                    <div className={styles.waveformLabel}>Input Monitor</div>
+                    <WaveformVisualizer width={500} height={120} bufferLength={bufferLength} getData={getDisplayableAudioData} dataType={"float"} />
+                </div>
+
+                {isMidiTrack && (
+                    <div className={styles.instrumentSection} style={{ flex: 1, backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '4px', border: '1px solid #333' }}>
+                        <div className={styles.waveformLabel} style={{ marginBottom: '10px', fontSize: '12px', color: '#888' }}>Instrument Selection</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <select
+                                value={currentTrack?.instrument || 'piano'}
+                                onChange={(e) => {
+                                    changeTrackInstrument(currentTrack.id, e.target.value);
+                                    if (e.target.value === 'synth') trackSamplersRef.current[currentTrack.id] = null;
+                                }}
+                                style={{ padding: '8px', backgroundColor: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', outline: 'none' }}
+                            >
+                                <option value="synth">synth</option>
+                                {Object.keys(INSTRUMENT_SAMPLES).map(inst => (
+                                    <option key={inst} value={inst}>{inst}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={() => loadSampler(currentTrack.id, currentTrack.instrument || 'piano')}
+                                style={{ padding: '8px', cursor: 'pointer', backgroundColor: 'var(--daw-accent-green)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+                            >
+                                Load Instrument
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

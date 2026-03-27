@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 	updateFunction: called every time position is updated
 	normal: whether or not the ref is attached to the element actually being moved (see recordingCanvas)
 */
-export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal) {
+export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal, triggerIn = null) {
 	const [dragging, setDragging] = useState(false);
 	const [pos, setPos] = useState({ x: initialPos.x, y: initialPos.y });
 	// stores mouse position relative to coordinates of bounding box (?)
@@ -18,7 +18,6 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 		return () => {
 			if (ref.current) ref.current.removeEventListener("mousedown", handleMouseDown);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ref.current]);
 
 	useEffect(() => {
@@ -28,7 +27,6 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 			document.removeEventListener("mousemove", handleMouseMove);
 			document.removeEventListener("mouseup", handleMouseUp);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [dragging, pos, relPos, grid]);
 
 	function handleMouseMove(e) {
@@ -64,6 +62,17 @@ export default function useDraggable(grid, fixAxis, initialPos, updateFunction, 
 	function handleMouseDown(e) {
 		if (!ref.current) return;
 		const box = ref.current.getBoundingClientRect();
+
+		if (triggerIn) {
+			const element = ref.current.parentElement;
+			const clickY = e.clientY - box.top;
+			const clickX = e.clientX - box.left;
+
+			if (triggerIn.top !== undefined && clickY < element.scrollTop + triggerIn.top) return;
+			if (triggerIn.bottom !== undefined && clickY > element.scrollTop + triggerIn.bottom) return;
+			if (triggerIn.left !== undefined && clickX < element.scrollLeft + triggerIn.left) return;
+			if (triggerIn.right !== undefined && clickX > element.scrollLeft + triggerIn.right) return;
+		}
 		setRelPos({
 			x: e.clientX - box.left,
 			y: e.clientY - box.top

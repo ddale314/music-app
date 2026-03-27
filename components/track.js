@@ -1,10 +1,11 @@
 import styles from '../styles/editor.module.css';
 
 export class Track {
-	constructor(id, audioSegments=[], type="audio") {
+	constructor(id, audioSegments=[], type="audio", instrument="piano") {
 		this.id = id;
 		this.audioSegments = audioSegments;
 		this.type = type;
+		this.instrument = instrument;
 	}
 
 	addAudioSegment(newSegment) {
@@ -30,7 +31,7 @@ export class Track {
 	}
 
 	copy() {
-		return new Track(this.id, [...this.audioSegments], this.type);
+		return new Track(this.id, [...this.audioSegments], this.type, this.instrument);
 	}
 }
 
