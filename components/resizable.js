@@ -19,6 +19,18 @@ export default function ResizableComponent({ id, initialWidth, height, gridX, in
 		}
 	}, [setData, pos, width]);
 
+	useEffect(() => {
+		if (!resizing) {
+			setWidth(initialWidth);
+		}
+	}, [initialWidth, resizing]);
+
+	useEffect(() => {
+		if (!dragging) {
+			setPos({ x: initialPos.x, y: initialPos.y });
+		}
+	}, [initialPos.x, initialPos.y, dragging, setPos]);
+
 	function handleMouseDownLeft(e) {
 		setResizing(true);
 		dragStart.current = {

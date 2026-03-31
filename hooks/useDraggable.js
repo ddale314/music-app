@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 	fixAxis: fix movement horizontally (x) or vertically (y)
 	updateFunction: called every time position is updated
 	normal: whether or not the ref is attached to the element actually being moved (see recordingCanvas)
+	triggerIn: object with top, bottom, left, right, if provided, the component will only be draggable if the mouse is within these bounds of the ref
 */
 export default function useDraggable(grid, fixAxis, initialPos, updateFunction, customOffset, normal, triggerIn = null) {
 	const [dragging, setDragging] = useState(false);

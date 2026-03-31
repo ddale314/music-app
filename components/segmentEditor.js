@@ -15,13 +15,16 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	const INITIAL_SEGMENT_WIDTH = 50;
 
 	useEffect(() => {
-		let totalDuration = segment.stop - segment.start;
 		let maxNoteEnd = 0;
 		noteData.forEach(n => {
-			let end = (n.x + n.w) / scale;
+			let end = n.x + n.w;
 			if (end > maxNoteEnd) maxNoteEnd = end;
 		});
-		if (maxNoteEnd > totalDuration) totalDuration = maxNoteEnd;
+
+		let totalDuration = segment.stop - segment.start;
+		if (noteData.length > 0) {
+			totalDuration = maxNoteEnd;
+		}
 
 		updateSegment(segment.id, null, totalDuration, noteData, segment.filePath, range);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -32,7 +35,7 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	function addNote(initialPos) {
 		let snappedY = Math.floor(initialPos.y / BAND_HEIGHT) * BAND_HEIGHT;
 		let snappedX = Math.floor(initialPos.x / quantize) * quantize;
-		setNoteData(prev => [...prev, { id: Date.now(), x: snappedX, y: snappedY, w: INITIAL_SEGMENT_WIDTH }]);
+		setNoteData(prev => [...prev, { id: Date.now(), x: snappedX / scale, y: snappedY, w: INITIAL_SEGMENT_WIDTH / scale }]);
 	}
 
 	const updateNoteData = useCallback((id, pos, width) => {
@@ -41,10 +44,10 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 			console.assert(noteIndex != -1);
 
 			const newData = [...prev];
-			newData[noteIndex] = { id: id, x: pos.x, y: pos.y, w: width };
+			newData[noteIndex] = { id: id, x: pos.x / scale, y: pos.y, w: width / scale };
 			return newData;
 		})
-	}, []);
+	}, [scale]);
 
 	function yCoordToNote(y) {
 		return getRangeAsArray(range)[y / BAND_HEIGHT];
@@ -56,10 +59,10 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		return <ResizableComponent
 			key={note.id}
 			id={note.id}
-			initialWidth={note.w}
+			initialWidth={note.w * scale}
 			height={BAND_HEIGHT}
 			gridX={quantize}
-			initialPos={{ x: note.x, y: note.y }}
+			initialPos={{ x: note.x * scale, y: note.y }}
 			setData={updateNoteData}
 		/>
 	}

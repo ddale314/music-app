@@ -27,12 +27,11 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const [selectedTrack, setSelectedTrack] = useState(1);
     const [tracks, setTracks] = useState([new Track(1)]);
     const [newTrackType, setNewTrackType] = useState('audio');
-    const [playLocation, setPlayLocation] = useState(-1);
+
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [shifting, setShifting] = useState(false); // whether time shift processing is taking place
 
     const rulerWidth = 30;
-    const boundingRectLeft = 482;
 
     const [editingSegment, setEditingSegment] = useState(null);
 
@@ -340,6 +339,13 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 if (!segCopy.data) {
                     let oldDuration = segCopy.stop - oldStart;
                     segCopy.stop = segCopy.start + (oldDuration * ratio);
+                    if (segCopy.noteData) {
+                        segCopy.noteData = segCopy.noteData.map(note => ({
+                            ...note,
+                            x: note.x * ratio,
+                            w: note.w * ratio
+                        }));
+                    }
                 } else {
                     let oldDuration = segCopy.stop - oldStart;
                     segCopy.stop = segCopy.start + oldDuration;

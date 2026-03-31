@@ -29,8 +29,8 @@ export class AudioSegment {
 			const rangeArray = getRangeAsArray(this.range);
 			this.noteData.forEach(note => {
 				const noteName = rangeArray[Math.floor(note.y / BAND_HEIGHT)];
-				const noteStart = note.x / scale;
-				const noteDuration = note.w / scale;
+				const noteStart = note.x;
+				const noteDuration = note.w;
 
 				if (noteStart + noteDuration > offset) {
 					let playStart = now + Math.max(0, noteStart - offset);
@@ -72,22 +72,22 @@ export class AudioSegment {
 
 	// split segment "cosmetically" without mutating audio data
 	split(pos, nextID, scale) {
-		let splitPixel = pos * scale;
+		let splitTime = pos;
 		let leftData = [];
 		let rightData = [];
 		for (let note of this.noteData) {
-			if (note.x + note.w <= splitPixel) {
+			if (note.x + note.w <= splitTime) {
 				leftData.push(note);
-			} else if (note.x >= splitPixel) {
-				rightData.push({ ...note, x: note.x - splitPixel });
+			} else if (note.x >= splitTime) {
+				rightData.push({ ...note, x: note.x - splitTime });
 			} else {
-				leftData.push({ ...note, w: splitPixel - note.x });
-				rightData.push({ ...note, x: 0, w: note.x + note.w - splitPixel });
+				leftData.push({ ...note, w: splitTime - note.x });
+				rightData.push({ ...note, x: 0, w: note.x + note.w - splitTime });
 			}
 		}
 
-		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, this.slice, this.filePath, leftData);
-		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, this.slice + pos, this.filePath, rightData);
+		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, this.slice, this.filePath, leftData, this.range);
+		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, this.slice + pos, this.filePath, rightData, this.range);
 		return [left, right];
 	}
 
@@ -191,13 +191,13 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, sel
 				{/* Visuals Overlay */}
 				<div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
 					{audioSegment.noteData && audioSegment.noteData.length > 0 && (() => {
-						const maxEnd = Math.max(...audioSegment.noteData.map(n => n.x + n.w));
-						if (maxEnd === 0) return null;
+						const duration = audioSegment.stop - audioSegment.start;
+						if (duration === 0) return null;
 						return (
 							<div style={{ position: 'relative', width: '100%', height: '100%', opacity: 0.6 }}>
 								{audioSegment.noteData.map(note => {
-									const left = (note.x / maxEnd) * 100;
-									const width = (note.w / maxEnd) * 100;
+									const left = (note.x / duration) * 100;
+									const width = (note.w / duration) * 100;
 									const top = ((note.y / 30) / (audioSegment.range.size + 1)) * 100;
 									const heightPercent = (1 / (audioSegment.range.size + 1)) * 100;
 									return (
