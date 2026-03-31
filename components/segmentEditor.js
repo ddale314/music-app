@@ -11,6 +11,7 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 	// index A0 as 0, default C3
 	const [range, setRange] = useState(segment.range || { min: 27, size: 24 });
 	const [noteData, setNoteData] = useState(segment.noteData || []);
+	const [selectedNotes, setSelectedNotes] = useState([]);
 
 	const INITIAL_SEGMENT_WIDTH = 50;
 
@@ -38,22 +39,79 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		setNoteData(prev => [...prev, { id: Date.now(), x: snappedX / scale, y: snappedY, w: INITIAL_SEGMENT_WIDTH / scale }]);
 	}
 
+	function duplicateNote(targetId) {
+		setNoteData(prev => {
+			let idsToDuplicate = [targetId];
+			if (selectedNotes.includes(targetId)) {
+				idsToDuplicate = selectedNotes;
+			}
+
+			const notesToDuplicate = prev.filter(n => idsToDuplicate.includes(n.id));
+			if (notesToDuplicate.length === 0) return prev;
+
+			const minX = Math.min(...notesToDuplicate.map(n => n.x));
+			const maxX = Math.max(...notesToDuplicate.map(n => n.x + n.w));
+			const offsetTime = Math.max(0.1, maxX - minX);
+
+			const newNotes = notesToDuplicate.map((original, i) => ({
+				id: Date.now() + i, // prevent id collision
+				x: original.x + offsetTime,
+				y: original.y,
+				w: original.w
+			}));
+
+			return [...prev, ...newNotes];
+		});
+	}
+
+	function deleteNote(targetId) {
+		let idsToDelete = [targetId];
+		if (selectedNotes.includes(targetId)) {
+			idsToDelete = selectedNotes;
+		}
+		setNoteData(prev => prev.filter(n => !idsToDelete.includes(n.id)));
+		setSelectedNotes(prev => prev.filter(id => !idsToDelete.includes(id)));
+	}
+
 	const updateNoteData = useCallback((id, pos, width) => {
 		setNoteData(prev => {
 			const noteIndex = prev.findIndex(x => x.id == id);
-			console.assert(noteIndex != -1);
+			if (noteIndex == -1) return prev;
 
-			const newData = [...prev];
-			newData[noteIndex] = { id: id, x: pos.x / scale, y: pos.y, w: width / scale };
-			return newData;
+			const original = prev[noteIndex];
+			const newX = pos.x / scale;
+			const newY = pos.y;
+			const newW = width / scale;
+
+			const deltaX = newX - original.x;
+			const deltaY = newY - original.y;
+			const deltaW = newW - original.w;
+
+			console.log("selected notes:", selectedNotes);
+			if (deltaX !== 0 || deltaY !== 0 || deltaW !== 0) {
+				if (selectedNotes.includes(id) && deltaW === 0) {
+					return prev.map((n, i) => {
+						if (i === noteIndex) {
+							return { id: id, x: Math.max(0, newX), y: newY, w: newW };
+						}
+						if (selectedNotes.includes(n.id)) {
+							return { ...n, x: Math.max(0, n.x + deltaX), y: n.y + deltaY };
+						}
+						return n;
+					});
+				}
+
+				const newData = [...prev];
+				newData[noteIndex] = { id: id, x: Math.max(0, newX), y: newY, w: newW };
+				return newData;
+			}
+			return prev;
 		})
-	}, [scale]);
+	}, [scale, selectedNotes]);
 
 	function yCoordToNote(y) {
 		return getRangeAsArray(range)[y / BAND_HEIGHT];
 	}
-
-
 
 	function noteToComponent(note) {
 		return <ResizableComponent
@@ -64,10 +122,28 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 			gridX={quantize}
 			initialPos={{ x: note.x * scale, y: note.y }}
 			setData={updateNoteData}
+			selected={selectedNotes.includes(note.id)}
+			onClick={() => {
+				if (!selectedNotes.includes(note.id)) {
+					setSelectedNotes([note.id]);
+				}
+			}}
 		/>
 	}
 
-
+	function onSelectRegion(box) {
+		const filterFunc = note => {
+			const noteX = note.x * scale;
+			const noteY = note.y;
+			const noteW = note.w * scale;
+			const noteH = BAND_HEIGHT;
+			return (noteX + noteW >= box.x) && (noteX <= box.x + box.w)
+				&& (noteY + noteH >= box.y) && (noteY <= box.y + box.h);
+		}
+		const selected = noteData.filter(filterFunc).map(note => note.id);
+		console.log("selected", selected);
+		setSelectedNotes(selected);
+	}
 
 	return (
 		<>
@@ -91,7 +167,19 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 				<button onClick={closeEditor}>Close</button>
 			</div>
 
-			<ClipDisplay components={noteData.map((note) => noteToComponent(note))} width={width} height={height} rulerSettings={rulerSettings} type={"segmentEditor"} range={getRangeAsArray(range)} addNote={addNote} />
+			<ClipDisplay
+				components={noteData.map((note) => noteToComponent(note))}
+				width={width}
+				height={height}
+				rulerSettings={rulerSettings}
+				type={"segmentEditor"}
+				range={getRangeAsArray(range)}
+				addNote={addNote}
+				duplicateNote={duplicateNote}
+				deleteNote={deleteNote}
+				onSelectRegion={onSelectRegion}
+				onDeselectAll={() => setSelectedNotes([])}
+			/>
 		</>
 	)
 }

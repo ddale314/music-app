@@ -19,7 +19,7 @@ let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
 export default function RecordingCanvas({ width = 800, height = 400 }) {
-    const [tickGap, setTickGap] = useState(2);
+    const [tickGap, setTickGap] = useState(5);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
     const [bpm, setBPM] = useState(100);
     const [quantize, setQuantize] = useState(8);
@@ -424,7 +424,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 </div>
                 <div className={styles.controlGroup}>
                     <label>Zoom</label>
-                    <input type="range" min="1" max="10" defaultValue="2" onChange={e => setTickGap(e.target.value)}></input>
+                    <input type="range" min="1" max="10" defaultValue="5" onChange={e => setTickGap(e.target.value)}></input>
                     <span className={styles.controlValue}>{tickGap}</span>
                 </div>
                 <div className={styles.controlGroup}>

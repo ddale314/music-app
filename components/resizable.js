@@ -1,7 +1,7 @@
 import useDraggable from "../hooks/useDraggable.js";
 import { useState, useEffect, useRef } from "react";
 
-export default function ResizableComponent({ id, initialWidth, height, gridX, initialPos = { x: 0, y: 0 }, setData = null }) {
+export default function ResizableComponent({ id, initialWidth, height, gridX, initialPos = { x: 0, y: 0 }, setData = null, selected = false, onClick = null }) {
 	const [resizing, setResizing] = useState(false);
 	const [width, setWidth] = useState(initialWidth);
 	const { dragging, ref, pos, setPos } = useDraggable({ x: gridX, y: height }, null, initialPos, () => { }, { x: 0, y: 0 }, true);
@@ -105,20 +105,24 @@ export default function ResizableComponent({ id, initialWidth, height, gridX, in
 	}
 
 	return (
-		<div>
+		<div data-note-id={id}>
 			{/* Draggable portion (rendered underneath handles) */}
 			{/* Must exactly match pos.x to prevent useDraggable drift calculation */}
-			<div ref={ref} style={{ 
+			<div ref={ref} onMouseDown={(e) => { if (e.button === 0 && onClick) onClick(); }} style={{ 
 				position: "absolute", 
 				left: pos.x, 
 				top: pos.y + 2, 
 				width: width, 
 				height: height - 4,
 				borderRadius: "4px",
-				background: resizing 
-					? "linear-gradient(180deg, var(--daw-accent-green-light, #4cd964) 0%, var(--daw-accent-green, #34c759) 100%)" 
-					: "linear-gradient(180deg, var(--daw-accent-green, #34c759) 0%, var(--daw-accent-green-dark, #248a3d) 100%)",
-				boxShadow: resizing ? "0 0 8px rgba(52, 199, 89, 0.6)" : "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+				background: selected 
+					? "linear-gradient(180deg, #e0e0e0 0%, #f5f5f5 100%)"
+					: (resizing 
+						? "linear-gradient(180deg, var(--daw-accent-green-light, #4cd964) 0%, var(--daw-accent-green, #34c759) 100%)" 
+						: "linear-gradient(180deg, var(--daw-accent-green, #34c759) 0%, var(--daw-accent-green-dark, #248a3d) 100%)"),
+				boxShadow: selected 
+					? "0 0 12px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.8)" 
+					: (resizing ? "0 0 8px rgba(52, 199, 89, 0.6)" : "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"),
 				border: "1px solid var(--daw-border, #1a632b)",
 				cursor: "grab",
 				zIndex: 1,
