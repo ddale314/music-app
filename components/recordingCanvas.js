@@ -18,6 +18,14 @@ const bufferLength = fftSize / 2;
 let nextID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
+export function sliderToDb(val) {
+    if (val <= 0) return -100;
+    // use a power curve for more natural volume taper
+    let maxAmp = Math.pow(10, 5 / 20); // amp for 5dB
+    let amp = Math.pow(val / 100, 2) * maxAmp;
+    return 20 * Math.log10(amp);
+}
+
 export default function RecordingCanvas({ width = 800, height = 400 }) {
     const [tickGap, setTickGap] = useState(5);
     const [timeSignature, setTimeSignature] = useState([4, 4]);
@@ -47,6 +55,33 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const updatePlayheadRef = useRef();
     const activeCtxRef = useRef(null);
     const trackSamplersRef = useRef({});
+    const trackVolumesRef = useRef({});
+
+    useEffect(() => {
+        tracks.forEach(t => {
+            if (!trackVolumesRef.current[t.id]) {
+                const volValue = t.volume !== undefined ? t.volume : 100;
+                const volNode = new Tone.Volume(sliderToDb(volValue)).toDestination();
+                volNode.mute = (volValue <= 0);
+                trackVolumesRef.current[t.id] = volNode;
+            }
+        });
+    }, [tracks]);
+
+    const changeTrackVolume = useCallback((trackId, newVolume) => {
+        setTracks(prevTracks => prevTracks.map(t => {
+            if (t.id === trackId) {
+                let tCopy = t.copy();
+                tCopy.volume = newVolume;
+                return tCopy;
+            }
+            return t;
+        }));
+        if (trackVolumesRef.current[trackId]) {
+            trackVolumesRef.current[trackId].volume.value = sliderToDb(newVolume);
+            trackVolumesRef.current[trackId].mute = (newVolume <= 0);
+        }
+    }, [tracks]);
 
     const loadSampler = useCallback((trackId, instrument) => {
         if (instrument === 'synth') {
@@ -63,7 +98,12 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
                 console.log(`${instrument} loaded for track ${trackId}`);
                 trackSamplersRef.current[trackId] = sampler;
             }
-        }).toDestination();
+        });
+        if (trackVolumesRef.current[trackId]) {
+            sampler.connect(trackVolumesRef.current[trackId]);
+        } else {
+            sampler.toDestination();
+        }
     }, []);
 
     const changeTrackInstrument = useCallback((trackId, newInstrument) => {
@@ -188,13 +228,15 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
+            if (track.volume !== undefined && track.volume <= 0) continue;
             let sampler = trackSamplersRef.current[track.id] || null;
+            let volumeNode = trackVolumesRef.current[track.id] || null;
             for (let j = 0; j < track.audioSegments.length; j++) {
                 let segment = track.audioSegments[j];
                 if (segment.stop > ts) {
                     let delay = Math.max(0, segment.start - ts);
                     let offset = Math.max(0, ts - segment.start);
-                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale, sampler);
+                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale, sampler, volumeNode);
                 }
             }
         }
@@ -448,7 +490,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             </div>
 
             {/* ===== Track Editor ===== */}
-            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
+            <ClipDisplay components={tracks} width={width} height={height} rulerSettings={{ width: rulerWidth, gap: tickGap, sig: timeSignature }} selected={{ selectedTrack: selectedTrack, setSelectedTrack: setSelectedTrack }} changeTrackVolume={changeTrackVolume} playhead={{ ref: ref, pos: pos }} asComp={asAudioSegmentComponent} type={"recordingCanvas"} />
 
             {/* ===== Waveform Monitor & Instrument Selector ===== */}
             <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', padding: '10px' }}>

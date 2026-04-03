@@ -3,7 +3,7 @@ import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 import { TrackComponent } from '../components/track';
 
-export default function ClipDisplay({ components, width, height, rulerSettings, type, asComp = null, selected = null, playhead = null, range = null, addNote = null, duplicateNote = null, deleteNote = null, onSelectRegion = null, onDeselectAll = null }) {
+export default function ClipDisplay({ components, width, height, rulerSettings, type, asComp = null, selected = null, changeTrackVolume = null, playhead = null, range = null, addNote = null, duplicateNote = null, deleteNote = null, onSelectRegion = null, onDeselectAll = null }) {
 	const editorScrollRef = useRef(null);
 	const dragRef = useRef(null);
 	const [contextMenu, setContextMenu] = useState(null);
@@ -106,17 +106,32 @@ export default function ClipDisplay({ components, width, height, rulerSettings, 
 	let sidebar;
 
 	if (type == "recordingCanvas") {
-		sidebar = <div className={styles.trackLabel}>
+		sidebar = <div className={styles.trackLabel} style={{ width: "200px" }}>
 			{
 				components.map((comp) => {
 					return (
-						<button
-							key={comp.id}
-							onClick={() => selected.setSelectedTrack(comp.id)}
-							className={selected.selectedTrack == comp.id ? styles.trackLabelButtonActive : styles.trackLabelButton}
-						>
-							Track {comp.id}
-						</button>
+						<div key={comp.id} style={{ height: '50px', display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--daw-border)', boxSizing: 'border-box' }}>
+							<button
+								onClick={() => selected.setSelectedTrack(comp.id)}
+								className={selected.selectedTrack == comp.id ? styles.trackLabelButtonActive : styles.trackLabelButton}
+								style={{ height: '30px', minHeight: '30px', borderBottom: 'none', padding: '0 12px' }}
+							>
+								Track {comp.id}
+							</button>
+							{changeTrackVolume && (
+								<div style={{ display: 'flex', alignItems: 'center', height: '20px', padding: '0 12px', background: 'var(--daw-bg-dark)' }}>
+									<label style={{ fontSize: '9px', marginRight: '6px', color: 'var(--daw-text-muted)' }}>VOL</label>
+									<input
+										type="range"
+										min="0"
+										max="100"
+										defaultValue={comp.volume !== undefined ? comp.volume : 100}
+										onChange={(e) => changeTrackVolume(comp.id, parseFloat(e.target.value))}
+										style={{ flex: 1, height: '4px', accentColor: 'var(--daw-accent-green)' }}
+									/>
+								</div>
+							)}
+						</div>
 					);
 				})
 			}

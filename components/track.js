@@ -1,11 +1,14 @@
 import styles from '../styles/editor.module.css';
 
+const DEFAULT_VOLUME = 100;
+
 export class Track {
-	constructor(id, audioSegments=[], type="audio", instrument="piano") {
+	constructor(id, audioSegments = [], type = "audio", instrument = "piano", volume = DEFAULT_VOLUME) {
 		this.id = id;
 		this.audioSegments = audioSegments;
 		this.type = type;
 		this.instrument = instrument;
+		this.volume = volume;
 	}
 
 	addAudioSegment(newSegment) {
@@ -31,7 +34,7 @@ export class Track {
 	}
 
 	copy() {
-		return new Track(this.id, [...this.audioSegments], this.type, this.instrument);
+		return new Track(this.id, [...this.audioSegments], this.type, this.instrument, this.volume);
 	}
 }
 
@@ -39,7 +42,7 @@ export function TrackComponent({ audioSegments, rulerStyle }) {
 	return (
 		<div className={styles.track} style={rulerStyle}>
 			{
-				audioSegments.map( (segment) => { return segment })
+				audioSegments.map((segment) => { return segment })
 			}
 		</div>
 	);

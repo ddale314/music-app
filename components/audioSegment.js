@@ -18,12 +18,17 @@ export class AudioSegment {
 		this.range = range;
 	}
 
-	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100, sampler = null) {
+	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100, sampler = null, volumeNode = null) {
 		this.sampler = sampler;
 		this.noteTimeouts = this.noteTimeouts || [];
 		if (this.noteData && this.noteData.length > 0) {
 			if (!sampler && !this.synth) {
-				this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+				this.synth = new Tone.PolySynth(Tone.Synth);
+				if (volumeNode) {
+					this.synth.connect(volumeNode);
+				} else {
+					this.synth.toDestination();
+				}
 			}
 			const now = scheduleStart + delay;
 			const rangeArray = getRangeAsArray(this.range);
@@ -57,7 +62,11 @@ export class AudioSegment {
 			let buffer = await ctx.decodeAudioData(arrayBuffer);
 			const source = ctx.createBufferSource();
 			source.buffer = buffer;
-			source.connect(ctx.destination);
+			if (volumeNode) {
+				Tone.connect(source, volumeNode);
+			} else {
+				source.connect(ctx.destination);
+			}
 			source.start(scheduleStart + delay, offset + this.slice, Math.max(0, this.stop - this.start - offset));
 			this.source = source;
 		}
