@@ -16,12 +16,25 @@ export class AudioSegment {
 		this.filePath = filePath;
 		this.noteData = noteData;
 		this.range = range;
+		this.noteTimeouts = [];
 	}
 
-	async play(ctx, delay = 0, offset = 0, scheduleStart = 0, scale = 100, sampler = null, volumeNode = null) {
+	// Attempts to play the content of this AudioSegment starting at `timeStamp` seconds into 
+	// the composition. `playbackStartTime` represents the internal time of the Tone.js context's
+	// clock when playback is initiated.
+	async play(ctx, timeStamp, playbackStartClockTime, sampler = null, volumeNode = null) {
 		this.sampler = sampler;
-		this.noteTimeouts = this.noteTimeouts || [];
+
+		// `delay` represents amount of time until playback of AudioSegment is scheduled to start
+		// `offset` represents how far into the AudioSegment playback is scheduled to start
+		// Only one is relevant for any given playback attempt.
+		const delay = Math.max(0, this.start - timeStamp);
+		const offset = Math.max(0, timeStamp - this.start);
+
+		// noteData is nonempty when the AudioSegment corresponds to a MIDI audio track, 
+		// otherwise the segment corresponds to recorded audio
 		if (this.noteData && this.noteData.length > 0) {
+			// Use PolySynth by default when sampler is not provided
 			if (!sampler && !this.synth) {
 				this.synth = new Tone.PolySynth(Tone.Synth);
 				if (volumeNode) {
@@ -30,30 +43,33 @@ export class AudioSegment {
 					this.synth.toDestination();
 				}
 			}
-			const now = scheduleStart + delay;
+
+			const segmentStartTime = playbackStartClockTime + delay;
 			const rangeArray = getRangeAsArray(this.range);
 			this.noteData.forEach(note => {
 				const noteName = rangeArray[Math.floor(note.y / BAND_HEIGHT)];
-				const noteStart = note.x;
+				const noteStartTime = note.x;
 				const noteDuration = note.w;
 
-				if (noteStart + noteDuration > offset) {
-					let playStart = now + Math.max(0, noteStart - offset);
+				if (!(noteStartTime + noteDuration <= offset)) {
+					let noteScheduleTime = segmentStartTime + Math.max(0, noteStartTime - offset);
 					let playDuration = noteDuration;
 
-					if (noteStart < offset) {
-						playDuration = noteDuration - (offset - noteStart);
+					if (noteStartTime < offset) {
+						playDuration = noteDuration - (offset - noteStartTime);
 					}
 
-					let delayInSeconds = Math.max(0, playStart - Tone.context.currentTime);
+					let timeUntilNotePlayback = Math.max(0, noteScheduleTime - Tone.context.currentTime);
 
+					// Schedule note to be played back after `timeUntilNotePlayback` seconds. ID is used for clearTimeout
+					// to stop playback.
 					let timeoutId = Tone.context.setTimeout(() => {
 						if (this.sampler) {
 							this.sampler.triggerAttackRelease(noteName, playDuration, Tone.context.currentTime);
 						} else {
 							this.synth.triggerAttackRelease(noteName, playDuration, Tone.context.currentTime);
 						}
-					}, delayInSeconds);
+					}, timeUntilNotePlayback);
 					this.noteTimeouts.push(timeoutId);
 				}
 			});
@@ -67,11 +83,13 @@ export class AudioSegment {
 			} else {
 				source.connect(ctx.destination);
 			}
-			source.start(scheduleStart + delay, offset + this.slice, Math.max(0, this.stop - this.start - offset));
+			const duration = Math.max(0, this.stop - this.start - offset);
+			source.start(playbackStartClockTime + delay, offset + this.slice, duration);
 			this.source = source;
 		}
 	}
 
+	// Return a deep copy of this AudioSegment
 	copy() {
 		let newSeg = new AudioSegment(this.id, this.data, this.start, this.stop, this.track, this.slice, this.filePath);
 		newSeg.noteData = [...this.noteData];
@@ -79,9 +97,13 @@ export class AudioSegment {
 		return newSeg;
 	}
 
-	// split segment "cosmetically" without mutating audio data
-	split(pos, nextID, scale) {
-		let splitTime = pos;
+	// Returns two AudioSegmetns created by splitting this AudioSegment at 
+	// `splitTime` seconds relative to its start time.
+	// For MIDI segments, `noteData` is split across the two new segments.
+	// For recorded audio, the split manifests as a modification of the AudioSegment's slice attribute,
+	// which dictates how far into `data` playback will begin. The actual audio data
+	// is not modified for performance reasons.
+	split(splitTime, nextID) {
 		let leftData = [];
 		let rightData = [];
 		for (let note of this.noteData) {
@@ -95,17 +117,21 @@ export class AudioSegment {
 			}
 		}
 
-		let left = new AudioSegment(nextID, this.data, this.start, this.start + pos, this.track, this.slice, this.filePath, leftData, this.range);
-		let right = new AudioSegment(nextID + 1, this.data, this.start + pos, this.stop, this.track, this.slice + pos, this.filePath, rightData, this.range);
+		let left = new AudioSegment(nextID, this.data, this.start, this.start + splitTime, this.track, this.slice, this.filePath, leftData, this.range);
+		let right = new AudioSegment(nextID + 1, this.data, this.start + splitTime, this.stop, this.track, this.slice + splitTime, this.filePath, rightData, this.range);
 		return [left, right];
 	}
 
-	setX(newX) {
+	setStart(newStart) {
 		let duration = this.stop - this.start;
-		this.start = newX;
+		this.start = newStart;
 		this.stop = this.start + duration;
 	}
 
+	// Stops all current and future scheduled audio. For recorded audio, 
+	// simply invokes AudioBufferSourceNode.stop(). For MIDI audio,
+	// releases all currently playing notes and clears timeouts that
+	// are scheduled to trigger in the future.
 	stopAudio() {
 		if (this.source) {
 			try {
@@ -128,11 +154,13 @@ export class AudioSegment {
 	}
 }
 
-export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, selected, processing, openEditor, scale }) {
+// Wraps an instance of AudioSegment as a JSX component. `scale` represents a scale factor used to convert between
+// position on screen (in pixels) and time relative to start of composition (in seconds).
+export function AudioSegmentComponent({ ctx, audioSegment, quantize, onSelect, selected, isBeingProcessed, openEditor, scale }) {
 	const [waveformData, setWaveformData] = useState(null);
 
-	// triggers audiosegment's visual position update when dragging takes place
-	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setX(pos.x / scale) };
+	// Triggers the AudioSegment's visual position update when dragging takes place
+	const updateFunction = (pos) => { if (pos.x >= 0) audioSegment.setStart(pos.x / scale) };
 	const { dragging, ref, pos, setPos } = useDraggable({ x: quantize, y: 1 }, "x", { x: audioSegment.start * scale, y: 0 }, updateFunction, { x: 0, y: 0 }, true)
 
 	useEffect(() => {
@@ -180,7 +208,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, sel
 		<>
 			<button
 				ref={ref}
-				onClick={() => { select(audioSegment) }}
+				onClick={() => { onSelect(audioSegment) }}
 				onDoubleClick={() => { if (openEditor) openEditor(audioSegment) }}
 				className={styles.audioSegment}
 				style={{
@@ -241,7 +269,7 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, select, sel
 				</div>
 
 				<span style={{ position: 'relative', zIndex: 1, paddingLeft: '8px', color: '#fff', fontSize: '12px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-					{processing ? "..." : ""}
+					{isBeingProcessed ? "..." : ""}
 				</span>
 			</button>
 		</>

@@ -6,12 +6,16 @@ import WaveformVisualizer from './waveform';
 const fftSize = 8192;
 let bufferLength = fftSize / 2;
 
-// equal temperament
-const INTERVAL = Math.pow(2, 1/12)
+// Equal temperament
+const INTERVAL = Math.pow(2, 1 / 12)
 const NOTES = ['A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A']
 
+// Returns array representation of frequency data 
+// given an AnalyserNode instance
 function getFrequencyData(analyser) {
-    let timeDomainData = getTimeDomainData(analyser)
+    let timeDomainData = new Float32Array(bufferLength);
+    analyser.getFloatTimeDomainData(timeDomainData);
+
     let frequencyData = [];
     for (let i = 0; i < bufferLength; i++) {
         frequencyData[i] = new Complex(timeDomainData[i], 0);
@@ -20,25 +24,21 @@ function getFrequencyData(analyser) {
     return frequencyData;
 }
 
-function getTimeDomainData(analyser) {
-    let timeDomainData = new Float32Array(bufferLength);
-    analyser.getFloatTimeDomainData(timeDomainData);
-    
-    return timeDomainData;
-}
-
+// Given an array containing frequency data, return the frequency with the largest magnitude, 
+// as well as the note corresponding to it in equal temperament.
 function getFrequencyAndNote(frequencyData, sampleRate) {
     let maxMagnitude = 0;
-    let maxFrequency = 0;
+    let maxFrequencyIdx = 0;
     for (let i = 0; i < bufferLength; i++) {
         let magnitude = frequencyData[i].magnitude();
         if (magnitude > maxMagnitude) {
             maxMagnitude = magnitude;
-            maxFrequency = i;
+            maxFrequencyIdx = i;
         }
     }
-    let realFrequency = indexToFrequency(maxFrequency, sampleRate);
-    
+
+    let realFrequency = Math.round(maxFrequencyIdx * (sampleRate / (fftSize / 2)));
+
     const A = 440;
     let difference = Math.log(realFrequency / A) / Math.log(INTERVAL);
     difference = Math.trunc(difference);
@@ -50,15 +50,10 @@ function getFrequencyAndNote(frequencyData, sampleRate) {
     return [NOTES[note - 1], realFrequency] // 0 index
 }
 
-function indexToFrequency(idx, sampleRate) {
-    return Math.round(idx * (sampleRate / (fftSize / 2)));
-}
-
-export default function AudioCanvas({ type, width=400, height=200, data=null, analyser, sampleRate }) {
+// Component which visually displays audio using an AnalyserNode instance
+export default function AudioCanvas({ type, width = 400, height = 200, data = null, analyser, sampleRate }) {
     const [note, setNote] = useState(-1);
     const [frequency, setFrequency] = useState(-1);
-
-    const [frequencyData, setFrequencyData] = useState(data);
 
     function handleAudio() {
         if (type != "realtime") return data;
@@ -74,7 +69,7 @@ export default function AudioCanvas({ type, width=400, height=200, data=null, an
 
     return (
         <>
-            <WaveformVisualizer width={width} height={height} bufferLength={bufferLength} getData={handleAudio} dataType={"complex"}/>
+            <WaveformVisualizer width={width} height={height} bufferLength={bufferLength} getData={handleAudio} dataType={"complex"} />
             <div>Frequency: {frequency}, Note: {note}</div>
         </>
     );

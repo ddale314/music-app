@@ -205,15 +205,15 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     function asAudioSegmentComponent(obj) {
         return <AudioSegmentComponent
             className={styles.audioSegment} key={obj.id} ctx={audioContext}
-            audioSegment={obj} quantize={rulerWidth * tickGap / quantize} select={toggleSelect}
-            selected={obj == selectedSegment} processing={obj == selectedSegment && shifting}
+            audioSegment={obj} quantize={rulerWidth * tickGap / quantize} onSelect={toggleSelect}
+            selected={obj == selectedSegment} isBeingProcessed={obj == selectedSegment && shifting}
             openEditor={(seg) => setEditingSegment(seg)}
             scale={rulerWidth * tickGap / timeSignature[1] * (bpm / 60)}
         />;
     }
 
     // start playing audiosegments across all tracks which lie after the playhead
-    async function playAt(ts) {
+    async function playAt(timeStamp) {
         if (Tone.context.state !== "running") {
             await Tone.start();
         }
@@ -222,7 +222,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
         isPlayingRef.current = true;
         playStartTimeRef.current = ctx.currentTime;
-        startPosRef.current = ts;
+        startPosRef.current = timeStamp;
 
         const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
 
@@ -233,10 +233,8 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
             let volumeNode = trackVolumesRef.current[track.id] || null;
             for (let j = 0; j < track.audioSegments.length; j++) {
                 let segment = track.audioSegments[j];
-                if (segment.stop > ts) {
-                    let delay = Math.max(0, segment.start - ts);
-                    let offset = Math.max(0, ts - segment.start);
-                    segment.play(ctx, delay, offset, playStartTimeRef.current, currentScale, sampler, volumeNode);
+                if (segment.stop > timeStamp) {
+                    segment.play(ctx, timeStamp, playStartTimeRef.current, sampler, volumeNode);
                 }
             }
         }
@@ -269,7 +267,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         let segment = track.containing(getTimestamp(pos.x));
         if (!segment) return;
         const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
-        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID, currentScale);
+        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID);
 
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
