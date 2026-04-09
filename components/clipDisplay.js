@@ -3,7 +3,10 @@ import styles from '../styles/editor.module.css';
 import Ruler from '../components/ruler';
 import { TrackComponent } from '../components/track';
 
-export default function ClipDisplay({ components, width, height, rulerSettings, type, asComp = null, selected = null, changeTrackVolume = null, playhead = null, range = null, addNote = null, duplicateNote = null, deleteNote = null, onSelectRegion = null, onDeselectAll = null }) {
+export default function ClipDisplay({ components, width, height, rulerSettings, type, asComp = null,
+	selected = null, changeTrackVolume = null, playhead = null, range = null, addNote = null,
+	duplicateNote = null, deleteNote = null, onSelectRegion = null, onDeselectAll = null }) {
+
 	const editorScrollRef = useRef(null);
 	const dragRef = useRef(null);
 	const [contextMenu, setContextMenu] = useState(null);

@@ -4,17 +4,17 @@ import ResizableComponent from "./resizable";
 import styles from '../styles/editor.module.css';
 import { BAND_HEIGHT, getRangeAsArray } from '../utils/notes';
 
-/*
-	scale is the scale factor to transform screen coordinates to time coordinates
-*/
+// `scale` represents a scale factor used to convert between position on screen (in pixels)
+// and time relative to start of composition (in seconds).
 export function SegmentEditor({ width, height, rulerSettings, quantize, scale, segment, updateSegment, closeEditor }) {
-	// index A0 as 0, default C3
+	// Index A0 as 0, use C3 as default
 	const [range, setRange] = useState(segment.range || { min: 27, size: 24 });
 	const [noteData, setNoteData] = useState(segment.noteData || []);
 	const [selectedNotes, setSelectedNotes] = useState([]);
 
 	const INITIAL_SEGMENT_WIDTH = 50;
 
+	// Update visual length of segment based on position of last note
 	useEffect(() => {
 		let maxNoteEnd = 0;
 		noteData.forEach(n => {
@@ -30,8 +30,6 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		updateSegment(segment.id, null, totalDuration, noteData, segment.filePath, range);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [noteData, range])
-
-
 
 	function addNote(initialPos) {
 		let snappedY = Math.floor(initialPos.y / BAND_HEIGHT) * BAND_HEIGHT;
@@ -109,10 +107,6 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		})
 	}, [scale, selectedNotes]);
 
-	function yCoordToNote(y) {
-		return getRangeAsArray(range)[y / BAND_HEIGHT];
-	}
-
 	function noteToComponent(note) {
 		return <ResizableComponent
 			key={note.id}
@@ -131,6 +125,8 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 		/>
 	}
 
+	// Modifies the `selectedNotes` state based on the notes which are within the selected region
+	// defined by `box`.
 	function onSelectRegion(box) {
 		const filterFunc = note => {
 			const noteX = note.x * scale;
@@ -141,7 +137,6 @@ export function SegmentEditor({ width, height, rulerSettings, quantize, scale, s
 				&& (noteY + noteH >= box.y) && (noteY <= box.y + box.h);
 		}
 		const selected = noteData.filter(filterFunc).map(note => note.id);
-		console.log("selected", selected);
 		setSelectedNotes(selected);
 	}
 

@@ -61,8 +61,8 @@ export class AudioSegment {
 
 					let timeUntilNotePlayback = Math.max(0, noteScheduleTime - Tone.context.currentTime);
 
-					// Schedule note to be played back after `timeUntilNotePlayback` seconds. ID is used for clearTimeout
-					// to stop playback.
+					// Schedule note to be played back after `timeUntilNotePlayback` seconds. 
+					// ID is used for clearTimeout to stop playback.
 					let timeoutId = Tone.context.setTimeout(() => {
 						if (this.sampler) {
 							this.sampler.triggerAttackRelease(noteName, playDuration, Tone.context.currentTime);
@@ -175,6 +175,9 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, onSelect, s
 
 	const borderColor = selected ? "#ffffff" : "var(--daw-bg-darkest)";
 
+	// Downsample time domain data of recorded audio to 200 samples, 
+	// one from each of 200 buckets, where each sample is the peak of its respective bucket. 
+	// Downsampled data is visually displayed on the AudioSegmentComponent.
 	useEffect(() => {
 		let active = true;
 		if (audioSegment.data && (!audioSegment.noteData || audioSegment.noteData.length === 0)) {
@@ -182,7 +185,6 @@ export function AudioSegmentComponent({ ctx, audioSegment, quantize, onSelect, s
 				return ctx.decodeAudioData(buffer);
 			}).then(audioBuffer => {
 				if (!active) return;
-				console.log(audioSegment.start, audioSegment.slice, audioSegment.stop);
 				const channelData = audioBuffer.getChannelData(0).slice(audioSegment.slice * ctx.sampleRate, (audioSegment.slice + audioSegment.stop - audioSegment.start) * ctx.sampleRate + 1);
 
 				const step = Math.ceil(channelData.length / 200);

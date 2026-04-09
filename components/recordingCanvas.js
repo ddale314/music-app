@@ -15,13 +15,14 @@ import { INSTRUMENT_SAMPLES, getBaseUrl } from '../utils/instruments';
 
 const fftSize = 8192;
 const bufferLength = fftSize / 2;
-let nextID = 0;
+let nextAudioSegmentID = 0;
 const SERVER_PATH = "http://localhost:3000/api";
 
+// Convert between volume slider value (linear scale) and decibels (logarithmic scale)
 export function sliderToDb(val) {
     if (val <= 0) return -100;
-    // use a power curve for more natural volume taper
-    let maxAmp = Math.pow(10, 5 / 20); // amp for 5dB
+    // Use a power curve for more natural volume taper
+    let maxAmp = Math.pow(10, 5 / 20); // Amp for 5dB
     let amp = Math.pow(val / 100, 2) * maxAmp;
     return 20 * Math.log10(amp);
 }
@@ -37,7 +38,8 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const [newTrackType, setNewTrackType] = useState('audio');
 
     const [selectedSegment, setSelectedSegment] = useState(null);
-    const [shifting, setShifting] = useState(false); // whether time shift processing is taking place
+    // Whether time shift processing is taking place
+    const [shifting, setShifting] = useState(false);
 
     const rulerWidth = 30;
 
@@ -45,7 +47,9 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
 
     const { isRecording, startRecording, stopRecording, analyser, audioContext } = useRecorder(handleRecordingComplete);
 
-    // normal argument to useDraggable is false because we want listeners to be attached to the whole editor rather than just the literal arrow
+    // TODO: REWRITE
+    // Normal argument to useDraggable is false because we want listeners to be attached to the 
+    // whole editor rather than just the literal arrow
     const { dragging, ref, pos, setPos } = useDraggable({ x: 1, y: 1 }, "x", { x: 0, y: 0 }, () => { }, { x: 0, y: 0 }, false, { top: 0, bottom: 40 });
 
     const animationRef = useRef(null);
@@ -57,6 +61,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     const trackSamplersRef = useRef({});
     const trackVolumesRef = useRef({});
 
+    // Handle track volume
     useEffect(() => {
         tracks.forEach(t => {
             if (!trackVolumesRef.current[t.id]) {
@@ -83,6 +88,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         }
     }, [tracks]);
 
+    // Loads and initializes data for Tone.Sampler instances
     const loadSampler = useCallback((trackId, instrument) => {
         if (instrument === 'synth') {
             trackSamplersRef.current[trackId] = null;
@@ -136,21 +142,21 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         let data = await blob.arrayBuffer();
         const dataString = Buffer.from(data).toString("base64");
 
-        // create file based on buffer
+        // Create file based on buffer
         const response = await fetch(`${SERVER_PATH}/upload`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: `segment${nextID}`, buffer: dataString })
+            body: JSON.stringify({ fileName: `segment${nextAudioSegmentID}`, buffer: dataString })
         });
 
         if (response.ok) {
             const result = await response.json();
 
-            // create audiosegment based on blob (arraybuffer can only be "used" once)
-            let newAudioSegment = new AudioSegment(nextID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
+            // Create audiosegment based on blob (ArrayBuffer can only be "used" once)
+            let newAudioSegment = new AudioSegment(nextAudioSegmentID, blob, getTimestamp(pos.x), getTimestamp(pos.x) + duration, selectedTrack - 1, 0, result.path);
             newTrack.addAudioSegment(newAudioSegment);
             setTracks(tracksCopy);
-            nextID++;
+            nextAudioSegmentID++;
         }
         else {
             console.log("Could not create audio segment");
@@ -212,7 +218,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         />;
     }
 
-    // start playing audiosegments across all tracks which lie after the playhead
     async function playAt(timeStamp) {
         if (Tone.context.state !== "running") {
             await Tone.start();
@@ -223,8 +228,6 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         isPlayingRef.current = true;
         playStartTimeRef.current = ctx.currentTime;
         startPosRef.current = timeStamp;
-
-        const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
@@ -267,7 +270,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         let segment = track.containing(getTimestamp(pos.x));
         if (!segment) return;
         const currentScale = rulerWidth * tickGap / timeSignature[1] * (bpm / 60);
-        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextID);
+        const [left, right] = segment.split(getTimestamp(pos.x) - segment.start, nextAudioSegmentID);
 
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
@@ -277,7 +280,7 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
         newTrack.removeAudioSegment(segment);
 
         setTracks(tracksCopy);
-        nextID += 2;
+        nextAudioSegmentID += 2;
     }
 
     function deleteSelectedSegment() {
@@ -328,13 +331,13 @@ export default function RecordingCanvas({ width = 800, height = 400 }) {
     }
 
     function addEmptySegment() {
-        let newAudioSegment = new AudioSegment(nextID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, null);
+        let newAudioSegment = new AudioSegment(nextAudioSegmentID, null, getTimestamp(pos.x), getTimestamp(pos.x) + 4, selectedTrack - 1, 0, null);
         let tracksCopy = tracks.map((track) => track.copy());
         let newTrack = tracksCopy[selectedTrack - 1];
 
         newTrack.addAudioSegment(newAudioSegment);
         setTracks(tracksCopy);
-        nextID++;
+        nextAudioSegmentID++;
     }
 
     function updateSegmentData(id, blob, duration, noteData, filePath, range) {
